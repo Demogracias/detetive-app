@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>TELEMETRIA ASTROBIOLÓGICA // SIMULADOR DE COEVOLUÇÃO 3D</title>
+    <style>
+        :root {
+            --bg-lab: #0a0f1d;
+            --panel-bg: rgba(13, 22, 39, 0.85);
+            --border-tech: #1e3a8a;
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --text-light: #f1f5f9;
+        }
+        body {
+            background-color: var(--bg-lab);
+            color: var(--text-light);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0; padding: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+        #interface-hud {
+            position: absolute; left: 0; top: 0;
+            width: 380px; height: 100vh; background-color: var(--panel-bg);
+            border-right: 2px solid var(--border-tech);
+            display: flex; flex-direction: column; overflow-y: auto; padding: 20px; box-sizing: border-box;
+            z-index: 20; backdrop-filter: blur(10px);
+            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+        }
+        h1 { color: var(--neon-blue); font-size: 1.1rem; text-transform: uppercase; border-bottom: 2px solid var(--border-tech); padding-bottom: 8px; margin-top: 0; letter-spacing: 1px;}
+        h2 { color: var(--neon-green); font-size: 0.85rem; text-transform: uppercase; margin-top: 20px; border-bottom: 1px dashed var(--border-tech); padding-bottom: 3px; }
+        
+        .control-block { margin-bottom: 12px; }
+        label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+        input[type=range] { width: 100%; accent-color: var(--neon-blue); background: #0f172a; }
+        .data-stream { float: right; color: var(--neon-blue); font-weight: bold; }
+        
+        .btn-tech {
+            background: #1e293b; color: var(--neon-blue); border: 1px solid var(--border-tech); padding: 8px;
+            font-family: inherit; font-size: 0.7rem; text-transform: uppercase; cursor: pointer; margin-top: 8px; width: 100%;
+            transition: all 0.3s;
+        }
+        .btn-tech:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 10px var(--neon-blue); }
+        
+        .telemetry-box { font-size: 0.7rem; color: #cbd5e1; background: rgba(15, 23, 42, 0.6); padding: 10px; border: 1px solid var(--border-tech); margin-top: 5px; }
+        #clade-telemetry {
+            background: rgba(2, 6, 23, 0.9); border: 1px solid var(--border-tech);
+            padding: 8px; font-size: 0.65rem; overflow-y: auto; color: var(--neon-green);
+            margin-top: 10px; flex-grow: 1; max-height: 220px;
+        }
+        .clade-node { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); }
+        #camera-hud {
+            position: absolute; bottom: 15px; right: 20px;
+            color: rgba(56, 189, 248, 0.5); font-size: 0.65rem; text-transform: uppercase; pointer-events: none; z-index: 5;
+            background: rgba(10,15,29,0.7); padding: 5px 10px; border: 1px solid rgba(30,58,138,0.5);
+        }
+        .soil-legend { display: flex; font-size: 0.6rem; gap: 5px; margin-top: 5px; }
+        .legend-tag { padding: 2px 5px; border-radius: 2px; font-weight: bold; }
+    </style>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+
+    <div id="camera-hud">Módulo Óptico: Rotar [Botão Esq] | Pan [Botão Dir] | Zoom [Scroll]</div>
+
+    <div id="interface-hud">
+        <h1>EXOBIOLOGY CORE // V.2026</h1>
+        <p style="font-size: 0.6rem; color: #64748b; margin: -5px 0 15px 0;">MONITORAMENTO DE ESPECIAÇÃO E COEVOLUÇÃO</p>
+        
+        <h2>Variáveis Estrelares & Atmosfera</h2>
+        <div class="control-block">
+            <label>Fluxo de Radiação Atínica <span id="lbl-rad" class="data-stream">15 R/h</span></label>
+            <input type="range" id="param-rad" min="0" max="100" value="15">
+        </div>
+        <div class="control-block">
+            <label>Saturação Hídrica Atmosférica <span id="lbl-chuva" class="data-stream">40%</span></label>
+            <input type="range" id="param-chuva" min="0" max="100" value="40">
+        </div>
+
+        <h2>Dinâmica de Substrato (Terreno)</h2>
+        <div class="soil-legend">
+            <span class="legend-tag" style="background:#1e3a8a; color:#fff">Água</span>
+            <span class="legend-tag" style="background:#0f172a; color:#fff">Regolito Estéril</span>
+            <span class="legend-tag" style="background:#065f46; color:#fff">Silicato Nutritivo</span>
+            <span class="legend-tag" style="background:#701a75; color:#fff">Basalto Mutagênico</span>
+        </div>
+        <button class="btn-tech" id="btn-regerar">Induzir Deriva Geológica (Nova Malha)</button>
+
+        <h2>Eventos Estocásticos (Neodarwinismo)</h2>
+        <button class="btn-tech" id="btn-purge" style="border-color: #ef4444; color: #ef4444;">Forçar Catástrofe de Extinção (Deriva Genética)</button>
+
+        <h2>Xenometria Acumulada</h2>
+        <div class="telemetry-box">
+            Ciclo Temporal Geracional: <span id="st-tempo" style="color:var(--neon-blue)">0</span> $T_g$<br>
+            Entropia de Caos Acumulada: <span id="st-caos" style="color:var(--neon-blue)">0</span><br>
+            Xenoflora Activa: <span id="st-flora" style="color:var(--neon-green)">0</span> | Xenofauna: <span id="st-fauna" style="color:#fff">0</span><br>
+            Fenótipo Dominante Fauna: <span id="st-fenofauna" style="color:var(--neon-blue)">-</span>
+        </div>
+
+        <h2>Divergência Filogenética (Cladograma)</h2>
+        <div id="clade-telemetry">Processando linhagens primordiais...</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- ENGENHARIA DE ENTROPIA CAÓTICA ---
+        let piscinaCaos = 0;
+        document.addEventListener('mousemove', (e) => {
+            piscinaCaos += (Math.abs(e.movementX) + Math.abs(e.movementY)) * performance.now();
+            if (piscinaCaos > 1e8) piscinaCaos = 0;
+        });
+        function obterRuidoCaotico() {
+            const arrayCripto = new Uint32Array(1);
+            crypto.getRandomValues(arrayCripto);
+            return (arrayCripto[0] + piscinaCaos + performance.now()) % 1000000 / 1000000;
+        }
+
+        // --- MATRIZ DO SISTEMA PLANETÁRIO ---
+        let cenario, moduloOptico, renderizador, controles, cronometro;
+        let malhaTerreno;
+        let luzEstelar;
+        let tempoGeracional = 0;
+
+        const PLANETA_DIM = 120;
+        const QUADRANTE_DIM = 3;
+        const RESOLUCAO = PLANETA_DIM / QUADRANTE_DIM;
+
+        // Tipos de Solo e suas propriedades metabólicas
+        const SOLO_AGUA = 0;
+        const SOLO_ESTERIL = 1;
+        const SOLO_NUTRITIVO = 2;
+        const SOLO_MUTAGENICO = 3;
+
+        let biomeConfig = { rad: 15, chuva: 40 };
+        let listaFlora = [];
+        let listaFauna = [];
+        let mapaSubstrato = [];
+        let cladograma = {};
+        let indexClados = 0;
+
+        // Dicionário de Materiais Exobiológicos para o Terreno
+        const materiaisSolo = {
+            [SOLO_AGUA]: new THREE.MeshPhongMaterial({ color: 0x1d4ed8, transparent: true, opacity: 0.7, shininess: 90 }),
+            [SOLO_ESTERIL]: new THREE.MeshPhongMaterial({ color: 0x1e293b, flatShading: true }),
+            [SOLO_NUTRITIVO]: new THREE.MeshPhongMaterial({ color: 0x064e3b, flatShading: true, shininess: 30 }),
+            [SOLO_MUTAGENICO]: new THREE.MeshPhongMaterial({ color: 0x581c87, flatShading: true, emissive: 0x2e1065 })
+        };
+
+        function iniciarLaboratorio() {
+            cronometro = new THREE.Clock();
+            cenario = new THREE.Scene();
+            cenario.background = new THREE.Color(0x020617);
+            cenario.fog = new THREE.FogExp2(0x020617, 0.008);
+
+            moduloOptico = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+            moduloOptico.position.set(PLANETA_DIM / 2, PLANETA_DIM / 1.2, PLANETA_DIM * 1.1);
+
+            renderizador = new THREE.WebGLRenderer({ antialias: true });
+            renderizador.setSize(window.innerWidth, window.innerHeight);
+            renderizador.shadowMap.enabled = true;
+            renderizador.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderizador.domElement);
+
+            controles = new OrbitControls(moduloOptico, renderizador.domElement);
+            controles.target.set(PLANETA_DIM / 2, 0, PLANETA_DIM / 2);
+            controles.enableDamping = true;
+            controles.dampingFactor = 0.05;
+
+            // Luzes do Ambiente de Teste
+            const luzDifusa = new THREE.AmbientLight(0x1e293b, 0.6);
+            cenario.add(luzDifusa);
+
+            luzEstelar = new THREE.DirectionalLight(0xfef08a, 1.2); // Estrela tipo G espectral sutil
+            luzEstelar.position.set(PLANETA_DIM, PLANETA_DIM, PLANETA_DIM / 2);
+            luzEstelar.castShadow = true;
+            luzEstelar.shadow.mapSize.width = 2048;
+            luzEstelar.shadow.mapSize.height = 2048;
+            luzEstelar.shadow.camera.left = -PLANETA_DIM;
+            luzEstelar.shadow.camera.right = PLANETA_DIM;
+            luzEstelar.shadow.camera.top = PLANETA_DIM;
+            luzEstelar.shadow.camera.bottom = -PLANETA_DIM;
+            cenario.add(luzEstelar);
+
+            window.addEventListener('resize', redimensionarJanela);
+            mapearControlesUI();
+        }
+
+        // --- ARVORE FILOGENÉTICA (TAXONOMIA COMPUTACIONAL) ---
+        function catalogarEspeciação(cladoPai, reino, causa) {
+            indexClados++;
+            let idClado = `${reino.substring(0,2).toUpperCase()}-${indexClados}`;
+            cladograma[idClado] = {
+                ancestre: cladoPai || "Célula Primordial",
+                mutacaoGatilho: causa,
+                contagemAtivos: 1
+            };
+            return idClado;
+        }
+
+        // --- GERAÇÃO PROCEDURAL MULTI-SOLO (Autômatos Celulares) ---
+        function simularGeologiaPlaneta() {
+            // Limpeza de sub-estruturas antigas
+            if (malhaTerreno) cenario.remove(malhaTerreno);
+            malhaTerreno = new THREE.Group();
+
+            mapaSubstrato = new Array(RESOLUCAO).fill(0).map(() => new Array(RESOLUCAO).fill(0));
+
+            // Fase 1: Semear caos puramente probabilístico baseado na nossa piscina de entropia
+            for (let x = 0; x < RESOLUCAO; x++) {
+                for (let z = 0; z < RESOLUCAO; z++) {
+                    let rand = obterRuidoCaotico();
+                    if (rand < 0.22) mapaSubstrato[x][z] = SOLO_AGUA;
+                    else if (rand < 0.60) mapaSubstrato[x][z] = SOLO_ESTERIL;
+                    else if (rand < 0.88) mapaSubstrato[x][z] = SOLO_NUTRITIVO;
+                    else mapaSubstrato[x][z] = SOLO_MUTAGENICO;
+                }
+            }
+
+            // Fase 2: Autômato Celular para consolidar biomas (agregação geológica)
+            for (let k = 0; k < 2; k++) {
+                let copiaMatriz = mapaSubstrato.map(arr => [...arr]);
+                for (let x = 1; x < RESOLUCAO - 1; x++) {
+                    for (let z = 1; z < RESOLUCAO - 1; z++) {
+                        let contagemTipos = [0, 0, 0, 0];
+                        for (let dx = -1; dx <= 1; dx++) {
+                            for (let dz = -1; dz <= 1; dz++) {
+                                contagemTipos[copiaMatriz[x + dx][z + dz]]++;
+                            }
+                        }
+                        let tipoPredominante = contagemTipos.indexOf(Math.max(...contagemTipos));
+                        mapaSubstrato[x][z] = tipoPredominante;
+                    }
+                }
+            }
+
+            // Instanciação dos blocos geométricos 3D do terreno
+            for (let x = 0; x < RESOLUCAO; x++) {
+                for (let z = 0; z < RESOLUCAO; z++) {
+                    let tipo = mapaSubstrato[x][z];
+                    let altura = (tipo === SOLO_AGUA) ? 0.4 : ((tipo === SOLO_MUTAGENICO) ? 1.5 : 1.0);
+                    
+                    const geoBloco = new THREE.BoxGeometry(QUADRANTE_DIM, altura, QUADRANTE_DIM);
+                    geoBloco.translate(0, altura / 2, 0);
+
+                    const blocoMesh = new THREE.Mesh(geoBloco, materiaisSolo[tipo]);
+                    blocoMesh.position.set(x * QUADRANTE_DIM, 0, z * QUADRANTE_DIM);
+                    blocoMesh.receiveShadow = true;
+                    if(tipo === SOLO_MUTAGENICO || tipo === SOLO_ESTERIL) blocoMesh.castShadow = true;
+                    
+                    malhaTerreno.add(blocoMesh);
+                }
+            }
+            cenario.add(malhaTerreno);
+        }
+
+        // --- XENOFLORA (PRODUTORES MORFOLÓGICOS) ---
+        class EstruturaPlanta3D {
+            constructor(x, z, pai = null) {
+                this.energia = 50; this.idade = 0; this.vivo = true;
+                this.posicao = new THREE.Vector3(x, obterAlturaSolo(x,z), z);
+
+                if (pai) {
+                    let coeficienteMutacao = 0.05 + (biomeConfig.rad / 100) * 0.5;
+                    this.clado = pai.clade;
+                    this.alturaHaste = Math.max(0.6, this.derivarGeno(pai.alturaHaste, 3, coeficienteMutacao, 'Altura Haste'));
+                    this.raioCopa = Math.max(0.3, this.derivarGeno(pai.raioCopa, 2, coeficienteMutacao, 'Raio Copa'));
+                    this.perfilFormato = (obterRuidoCaotico() < coeficienteMutacao) ? Math.floor(obterRuidoCaotico() * 3) : pai.perfilFormato; // 0: Cone, 1: Esfera, 2: Cilindro
+                    this.pigmentacao = Math.max(0, Math.min(100, this.derivarGeno(pai.pigmentacao, 50, coeficienteMutacao, 'Pigmento Espectral')));
+                } else {
+                    this.clado = catalogarEspeciação(null, "Flora", "Semente Primária");
+                    this.alturaHaste = 1.2 + obterRuidoCaotico() * 2;
+                    this.raioCopa = 0.5 + obterRuidoCaotico() * 1.5;
+                    this.perfilFormato = Math.floor(obterRuidoCaotico() * 3);
+                    this.pigmentacao = obterRuidoCaotico() * 100;
+                }
+                if (cladograma[this.clado]) cladograma[this.clado].contagemAtivos++;
+
+                // Montagem do Fenótipo Visual 3D composto
+                this.meshCompilado = new THREE.Group();
+                
+                // Haste (Caule)
+                const geoCaule = new THREE.CylinderGeometry(0.1, 0.15, this.alturaHaste, 5);
+                geoCaule.translate(0, this.alturaHaste / 2, 0);
+                const matCaule = new THREE.MeshPhongMaterial({ color: 0x334155, flatShading: true });
+                const cauleMesh = new THREE.Mesh(geoCaule, matCaule);
+                this.meshCompilado.add(cauleMesh);
+
+                // Copa (Estrutura captadora de fótons)
+                let geoCopa;
+                if (this.perfilFormato === 0) geoCopa = new THREE.ConeGeometry(this.raioCopa, this.alturaHaste, 5);
+                else if (this.perfilFormato === 1) geoCopa = new THREE.SphereGeometry(this.raioCopa, 5, 5);
+                else geoCopa = new THREE.CylinderGeometry(this.raioCopa, this.raioCopa, this.alturaHaste * 0.5, 5);
+                
+                geoCopa.translate(0, this.alturaHaste, 0);
+
+                // Pigmentação reflete a adaptação metabólica da atmosfera exobiológica
+                let r = Math.floor(this.pigmentacao * 2.5);
+                let g = Math.floor((100 - this.pigmentacao) * 2.5);
+                const matCopa = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(`rgb(${r}, ${g}, 120)`),
+                    flatShading: true
+                });
+                
+                const copaMesh = new THREE.Mesh(geoCopa, matCopa);
+                copaMesh.castShadow = true;
+                this.meshCompilado.add(copaMesh);
+
+                this.meshCompilado.position.copy(this.posicao);
+                cenario.add(this.meshCompilado);
+            }
+
+            derivarGeno(valor, variacao, taxa, geneNome) {
+                if (obterRuidoCaotico() < taxa) {
+                    let delta = (obterRuidoCaotico() - 0.5) * variacao;
+                    if (Math.abs(delta) > variacao * 0.38) this.clado = catalogarEspeciação(this.clado, "Flora", geneNome);
+                    return valor + delta;
+                }
+                return valor;
+            }
+
+            executarCicloMetabolico(dt) {
+                this.idade += dt * 5;
+                let xGrid = Math.floor(this.posicao.x / QUADRANTE_DIM);
+                let zGrid = Math.floor(this.posicao.z / QUADRANTE_DIM);
+                
+                let tipoSolo = (xGrid >= 0 && xGrid < RESOLUCAO && zGrid >= 0 && zGrid < RESOLUCAO) ? mapaSubstrato[xGrid][zGrid] : SOLO_ESTERIL;
+
+                // Absorção adaptativa do solo e clima
+                let eficienciaFotossintese = (biomeConfig.chuva / 100) * (this.pigmentacao / 100);
+                if (tipoSolo === SOLO_NUTRITIVO) eficienciaFotossintese *= 2.2; // Solo fértil acelera bio-geração
+                if (tipoSolo === SOLO_AGUA) eficienciaFotossintese *= 0.2; // Afogamento radicular se não adaptada
+
+                this.energia += (eficienciaFotossintese * 0.4) - 0.12;
+
+                // Fator destrutivo de radiação exógena
+                if(tipoSolo === SOLO_MUTAGENICO) this.energia -= (biomeConfig.rad * 0.004);
+
+                // Reprodução / Geração de Prole Espacial (Dispersão)
+                if (this.energia > 110) {
+                    this.energia -= 55;
+                    let rad = obterRuidoCaotico() * Math.PI * 2;
+                    let rDist = 4 + obterRuidoCaotico() * 16;
+                    let filhoX = this.posicao.x + Math.cos(rad) * rDist;
+                    let filhoZ = this.posicao.z + Math.sin(rad) * rDist;
+
+                    let fxG = Math.floor(filhoX / QUADRANTE_DIM);
+                    let fzG = Math.floor(filhoZ / QUADRANTE_DIM);
+                    if (fxG >= 0 && fxG < RESOLUCAO && fzG >= 0 && fzG < RESOLUCAO && mapaSubstrato[fxG][fzG] !== SOLO_AGUA) {
+                        listaFlora.push(new EstruturaPlanta3D(filhoX, filhoZ, this));
+                    }
+                }
+
+                if (this.energia <= 0 || this.idade > 1800) this.destruirEstrutura();
+            }
+
+            destruirEstrutura() {
+                this.vivo = false;
+                cenario.remove(this.meshCompilado);
+                if (cladograma[this.clado]) cladograma[this.clado].contagemAtivos--;
+            }
+        }
+
+        // --- XENOFAUNA (ORGANISMOS LOCOMOTORES COEVOLUTIVOS) ---
+        class EstruturaAnimal3D {
+            constructor(x, z, pai = null) {
+                this.energia = 90; this.idade = 0; this.vivo = true;
+                this.posicao = new THREE.Vector3(x, 1, z);
+                this.direcaoAngulo = obterRuidoCaotico() * Math.PI * 2;
+
+                if (pai) {
+                    let coeficienteMutacao = 0.05 + (biomeConfig.rad / 100) * 0.5;
+                    this.clado = pai.clado;
+                    this.escalaMassa = Math.max(0.4, this.derivarGeno(pai.escalaMassa, 1.5, coeficienteMutacao, 'Massa Corporal'));
+                    this.mecanismoPropulsao = Math.max(3, this.derivarGeno(pai.mecanismoPropulsao, 8, coeficienteMutacao, 'Locomoção/Vel'));
+                    this.capacidadeLofoforo = Math.max(10, this.derivarGeno(pai.capacidadeLofoforo, 50, coeficienteMutacao, 'Sensores/Visão')); // Raio de varredura alimentar
+                    this.morfologiaSegmentos = (obterRuidoCaotico() < coeficienteMutacao) ? Math.floor(obterRuidoCaotico() * 3) : pai.morfologiaSegmentos; // 0: Esferoide, 1: Alongado, 2: Angular
+                } else {
+                    this.clado = catalogarEspeciação(null, "Fauna", "Zygoto Fundador");
+                    this.escalaMassa = 0.6 + obterRuidoCaotico() * 1.2;
+                    this.mecanismoPropulsao = 4 + obterRuidoCaotico() * 6;
+                    this.capacidadeLofoforo = 20 + obterRuidoCaotico() * 35;
+                    this.morfologiaSegmentos = Math.floor(obterRuidoCaotico() * 3);
+                }
+                if (cladograma[this.clado]) cladograma[this.clado].contagemAtivos++;
+
+                // Montagem visual do fenótipo locomotor
+                this.meshAnimal = new THREE.Group();
+                let geoCorpo;
+                if(this.morfologiaSegmentos === 0) geoCorpo = new THREE.DodecahedronGeometry(this.escalaMassa * 0.6);
+                else if(this.morfologiaSegmentos === 1) geoCorpo = new THREE.CylinderGeometry(this.escalaMassa*0.3, this.escalaMassa*0.4, this.escalaMassa*1.6, 6);
+                else geoCorpo = new THREE.BoxGeometry(this.escalaMassa, this.escalaMassa, this.escalaMassa * 1.4);
+
+                // Pigmentação adaptativa à locomoção (Expressão de velocidade/agressividade metabólica)
+                let b = Math.floor((this.mecanismoPropulsao / 14) * 255);
+                const matCorpo = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(`rgb(240, 240, ${b})`),
+                    specular: 0x38bdf8, shininess: 80
+                });
+
+                const nucleoMesh = new THREE.Mesh(geoCorpo, matCorpo);
+                nucleoMesh.castShadow = true;
+                this.meshAnimal.add(nucleoMesh);
+
+                // Apêndices proxy de locomoção (indica formato anatômico do ser exobiológico)
+                const geoApindice = new THREE.BoxGeometry(this.escalaMassa*0.2, this.escalaMassa*0.6, this.escalaMassa*0.2);
+                geoApindice.translate(0, -this.escalaMassa*0.4, 0);
+                const matAp = new THREE.MeshBasicMaterial({ color: 0x94a3b8, wireframe: true });
+                
+                // Adiciona 4 membros estruturais simples para feedback biológico de locomoção
+                for(let i=0; i<4; i++) {
+                    let pLeg = new THREE.Mesh(geoApindice, matAp);
+                    pLeg.position.set(Math.cos(i*Math.PI/2)*this.escalaMassa*0.4, 0, Math.sin(i*Math.PI/2)*this.escalaMassa*0.4);
+                    this.meshAnimal.add(pLeg);
+                }
+
+                this.meshAnimal.position.copy(this.posicao);
+                cenario.add(this.meshAnimal);
+            }
+
+            derivarGeno(valor, variacao, taxa, geneNome) {
+                if (obterRuidoCaotico() < taxa) {
+                    let delta = (obterRuidoCaotico() - 0.5) * variacao;
+                    if (Math.abs(delta) > variacao * 0.4) this.clado = catalogarEspeciação(this.clado, "Fauna", geneNome);
+                    return valor + delta;
+                }
+                return valor;
+            }
+
+            executarCicloVida(dt) {
+                this.idade += dt * 10;
+                
+                // Leitura de substrato sob o espécime
+                let xGrid = Math.floor(this.posicao.x / QUADRANTE_DIM);
+                let zGrid = Math.floor(this.posicao.z / QUADRANTE_DIM);
+                let tipoSolo = (xGrid >= 0 && xGrid < RESOLUCAO && zGrid >= 0 && zGrid < RESOLUCAO) ? mapaSubstrato[xGrid][zGrid] : SOLO_ESTERIL;
+
+                // Busca quimiotática por Xenoflora (Alimentação)
+                let alvoFlora = null;
+                let menorDistancia = this.capacidadeLofoforo;
+
+                for (let i = 0; i < listaFlora.length; i++) {
+                    let dist = this.posicao.distanceTo(listaFlora[i].posicao);
+                    if (dist < menorDistancia) {
+                        menorDistancia = dist;
+                        alvoFlora = listaFlora[i];
+                    }
+                }
+
+                if (alvoFlora) {
+                    // Direciona o vetor anatômico ao alimento
+                    let direcaoAlvo = Math.atan2(alvoFlora.posicao.z - this.posicao.z, alvoFlora.posicao.x - this.posicao.x);
+                    this.direcaoAngulo = direcaoAlvo;
+                } else {
+                    this.direcaoAngulo += (obterRuidoCaotico() - 0.5) * 0.4;
+                }
+
+                // Cálculo de velocidade e fricção biomecânica por tipo de solo
+                let velocidadeReal = this.mecanismoPropulsao * dt;
+                if (tipoSolo === SOLO_AGUA) velocidadeReal *= 0.35; // Fricção de fluido reduz mobilidade terrestre
+                if (tipoSolo === SOLO_NUTRITIVO) velocidadeReal *= 1.1;
+
+                this.posicao.x += Math.cos(this.direcaoAngulo) * velocidadeReal;
+                this.posicao.z += Math.sin(this.direcaoAngulo) * velocidadeReal;
+
+                // Limites em loop planar do ecossistema
+                if (this.posicao.x < 0) this.posicao.x = PLANETA_DIM; if (this.posicao.x > PLANETA_DIM) this.posicao.x = 0;
+                if (this.posicao.z < 0) this.posicao.z = PLANETA_DIM; if (this.posicao.z > PLANETA_DIM) this.posicao.z = 0;
+
+                // Ajuste dinâmico de altitude baseado no terreno procedural 3D
+                this.posicao.y = obterAlturaSolo(this.posicao.x, this.posicao.z) + 0.6 + Math.abs(Math.sin(performance.now() * 0.006 * this.mecanismoPropulsao)) * 0.3;
+
+                this.meshAnimal.position.copy(this.posicao);
+                this.meshAnimal.rotation.y = -this.direcaoAngulo;
+
+                // Gasto bioenergético baseado na física da Teoria Sintética
+                let custoMetabolico = (this.escalaMassa * 0.08) + (this.mecanismoPropulsao * 0.02) + (this.capacidadeLofoforo * 0.002);
+                this.energia -= custoMetabolico;
+
+                // Mutação estocástica cumulativa por solo radiotivo
+                if (tipoSolo === SOLO_MUTAGENICO) this.energia -= (biomeConfig.rad * 0.005);
+
+                // Geração de Prole (Sucesso Reprodutivo / Divisão Geracional)
+                if (this.energia > 160) {
+                    this.energia -= 80;
+                    listaFauna.push(new EstruturaAnimal3D(this.posicao.x, this.posicao.z, this));
+                }
+
+                if (this.energia <= 0 || this.idade > 1200) this.morrer();
+            }
+
+            morrer() {
+                this.vivo = false;
+                cenario.remove(this.meshAnimal);
+                if (cladograma[this.clado]) cladograma[this.clado].contagemAtivos--;
+            }
+        }
+
+        // --- SISTEMAS AUXILIARES DE FÍSICA PROCEDURAL ---
+        function obterAlturaSolo(x, z) {
+            let xGrid = Math.floor(x / QUADRANTE_DIM);
+            let zGrid = Math.floor(z / QUADRANTE_DIM);
+            if (xGrid >= 0 && xGrid < RESOLUCAO && zGrid >= 0 && zGrid < RESOLUCAO) {
+                let tipo = mapaSubstrato[xGrid][zGrid];
+                return (tipo === SOLO_AGUA) ? 0.4 : ((tipo === SOLO_MUTAGENICO) ? 1.5 : 1.0);
+            }
+            return 1.0;
+        }
+
+        // --- INTERAÇÕES BIÓTICAS (MECÂNICA DE PREDAÇÃO DE PRODUTORES) ---
+        function processarEcossistema(dt) {
+            tempoGeracional += dt * 0.5;
+
+            // Loop Flora
+            for (let i = listaFlora.length - 1; i >= 0; i--) {
+                listaFlora[i].executarCicloMetabolico(dt);
+                if (!listaFlora[i].vivo) listaFlora.splice(i, 1);
+            }
+
+            // Loop Fauna
+            for (let i = listaFauna.length - 1; i >= 0; i--) {
+                let animal = listaFauna[i];
+                animal.executarCicloVida(dt);
+
+                // Testar intersecção com a flora local (Alimentação)
+                for (let j = listaFlora.length - 1; j >= 0; j--) {
+                    let planta = listaFlora[j];
+                    let distXZ = Math.hypot(animal.posicao.x - planta.posicao.x, animal.posicao.z - planta.posicao.z);
+                    
+                    if (distXZ < (animal.escalaMassa + planta.raioCopa * 0.5)) {
+                        // Digestão de matéria exobiológica
+                        animal.energia += (planta.alturaHaste * 14);
+                        planta.destruirEstrutura();
+                        listaFlora.splice(j, 1);
+                        break;
+                    }
+                }
+
+                if (!animal.vivo) listaFauna.splice(i, 1);
+            }
+        }
+
+        // --- TELEMETRIA DE UI E MAPEAMENTO ---
+        function renderizarLaboratorio() {
+            requestAnimationFrame(renderizarLaboratorio);
+            const dt = cronometro.getDelta();
+
+            processarEcossistema(dt);
+
+            if (obterRuidoCaotico() < 0.05) {
+                document.getElementById('st-tempo').innerText = Math.floor(tempoGeracional);
+                document.getElementById('st-caos').innerText = Math.floor(piscinaCaos % 100000);
+                document.getElementById('st-flora').innerText = listaFlora.length;
+                document.getElementById('st-fauna').innerText = listaFauna.length;
+
+                // Calcular morfologia dominante na fauna
+                if(listaFauna.length > 0) {
+                    let contagemFormas = [0, 0, 0];
+                    listaFauna.forEach(a => contagemFormas[a.morfologiaSegmentos]++);
+                    let maxIdx = contagemFormas.indexOf(Math.max(...contagemFormas));
+                    const nomesF = ['Esferóide', 'Alongado (Verme)', 'Angular (Carapaça)'];
+                    document.getElementById('st-fenofauna').innerText = nomesF[maxIdx];
+                }
+
+                // Renderizar Cladograma Filogenético
+                const caixaClado = document.getElementById('clade-telemetry');
+                caixaClado.innerHTML = "";
+                let cladosVivos = Object.keys(cladograma).filter(k => cladograma[k].contagemAtivos > 0)
+                                    .sort((a,b) => cladograma[b].contagemAtivos - cladograma[a].contagemAtivos);
+
+                if(cladosVivos.length === 0) caixaClado.innerText = "Nenhuma especiação registrada.";
+                cladosVivos.slice(0, 8).forEach(id => {
+                    let c = cladograma[id];
+                    caixaClado.innerHTML += `<div class="clade-node"><strong>Linhagem: ${id}</strong> (Vivos: ${c.contagemAtivos})<br>└─ Gatilho: ${c.mutacaoGatilho}<br>└─ Raiz: ${c.ancestre}</div>`;
+                });
+            }
+
+            controles.update();
+            renderizador.render(cenario, moduloOptico);
+        }
+
+        function mapearControlesUI() {
+            document.getElementById('param-rad').addEventListener('input', (e) => {
+                biomeConfig.rad = parseInt(e.target.value);
+                document.getElementById('lbl-rad').innerText = e.target.value + ' R/h';
+            });
+            document.getElementById('param-chuva').addEventListener('input', (e) => {
+                biomeConfig.chuva = parseInt(e.target.value);
+                document.getElementById('lbl-chuva').innerText = e.target.value + '%';
+            });
+            document.getElementById('btn-regerar').addEventListener('click', regerarGenoMundo);
+            document.getElementById('btn-purge').addEventListener('click', executarCatastrofeEstocastica);
+        }
+
+        function regerarGenoMundo() {
+            listaFlora.forEach(f => cenario.remove(f.meshCompilado));
+            listaFauna.forEach(a => cenario.remove(a.meshAnimal));
+            listaFlora = []; listaFauna = []; cladograma = {}; indexClados = 0; tempoGeracional = 0;
+
+            simularGeologiaPlaneta();
+
+            // Injeção de Populações Fundadoras Originais
+            for (let i = 0; i < 50; i++) {
+                let rx = obterRuidoCaotico() * PLANETA_DIM;
+                let rz = obterRuidoCaotico() * PLANETA_DIM;
+                if(mapaSubstrato[Math.floor(rx/QUADRANTE_DIM)][Math.floor(rz/QUADRANTE_DIM)] !== SOLO_AGUA) {
+                    listaFlora.push(new EstruturaPlanta3D(rx, rz));
+                }
+            }
+            for (let i = 0; i < 25; i++) {
+                listaFauna.push(new EstruturaAnimal3D(obterRuidoCaotico() * PLANETA_DIM, obterRuidoCaotico() * PLANETA_DIM));
+            }
+        }
+
+        function executarCatastrofeEstocastica() {
+            // Efeito de Gargalo Evolutivo Puro (Deriva Genética sem Seleção por Aptidão)
+            listaFauna = listaFauna.filter(a => {
+                let vive = obterRuidoCaotico() > 0.85; // 85% de mortalidade estocástica
+                if(!vive) cenario.remove(a.meshAnimal);
+                return vive;
+            });
+            listaFlora = listaFlora.filter(f => {
+                let vive = obterRuidoCaotico() > 0.85;
+                if(!vive) cenario.remove(f.meshCompilado);
+                return vive;
+            });
+
+            // Atualização taxonômica dos sobreviventes
+            Object.keys(cladograma).forEach(k => cladograma[k].contagemAtivos = 0);
+            listaFauna.forEach(a => cladograma[a.clade] ? cladograma[a.clade].contagemAtivos++ : null);
+            listaFlora.forEach(f => cladograma[f.clade] ? cladograma[f.clade].contagemAtivos++ : null);
+        }
+
+        function redimensionarJanela() {
+            moduloOptico.aspect = window.innerWidth / window.innerHeight;
+            moduloOptico.updateProjectionMatrix();
+            renderizador.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Execução Inicial do Sistema
+        iniciarLaboratorio();
+        regerarGenoMundo();
+        renderizarLaboratorio();
+    </script>
+</body>
+</html>

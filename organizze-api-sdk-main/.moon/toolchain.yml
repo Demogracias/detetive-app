@@ -1,0 +1,4 @@
+node:
+  packageManager: bun
+python:
+  packageManager: uv

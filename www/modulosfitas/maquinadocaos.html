@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projeto AlephTron - Gerador de Caos Quântico</title>
+    <style>
+        :root {
+            --bg-pure: #030303;
+            --bg-box: #0a0e0a;
+            --phosphor: #33ff33;
+            --phosphor-dim: #116611;
+            --ash: #888888;
+            --border: #1a261a;
+            --font-spy: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-pure);
+            color: var(--ash);
+            font-family: var(--font-spy);
+            margin: 0;
+            padding: 30px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: 
+                linear-gradient(rgba(18, 24, 18, 0) 50%, rgba(0, 0, 0, 0.4) 50%),
+                linear-gradient(90deg, rgba(0, 30, 0, 0.05), rgba(0, 0, 0, 0.05), rgba(0, 30, 0, 0.05));
+            background-size: 100% 4px, 6px 100%;
+        }
+
+        .terminal-header {
+            text-align: center;
+            max-width: 850px;
+            width: 100%;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-size: 1.4em;
+            margin: 0;
+            text-shadow: 0 0 5px var(--phosphor);
+        }
+
+        .subtitle {
+            font-size: 0.8em;
+            color: var(--phosphor-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 5px;
+        }
+
+        .grid {
+            max-width: 850px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background-color: var(--bg-box);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: inset 0 0 15px rgba(0, 255, 0, 0.02), 0 10px 20px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        h2 {
+            font-size: 0.95em;
+            text-transform: uppercase;
+            color: #ffffff;
+            letter-spacing: 2px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-left: 3px solid var(--phosphor);
+            padding-left: 8px;
+        }
+
+        /* Zona de Captura de Caos */
+        .chaos-canvas {
+            width: 100%;
+            height: 150px;
+            background-color: #000;
+            border: 1px solid var(--border);
+            cursor: crosshair;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .canvas-label {
+            font-size: 0.75em;
+            color: var(--phosphor-dim);
+            text-transform: uppercase;
+            text-align: center;
+            pointer-events: none;
+            z-index: 2;
+            letter-spacing: 1px;
+        }
+
+        .progress-container {
+            background-color: #020502;
+            border: 1px solid var(--border);
+            height: 15px;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .progress-bar {
+            background-color: var(--phosphor);
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s ease;
+            box-shadow: 0 0 8px var(--phosphor);
+        }
+
+        label {
+            font-size: 0.75em;
+            color: var(--phosphor-dim);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+            margin-top: 15px;
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            background-color: #000;
+            border: 1px solid var(--border);
+            color: var(--phosphor);
+            padding: 10px;
+            font-family: var(--font-spy);
+            box-sizing: border-box;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--phosphor);
+        }
+
+        button {
+            width: 100%;
+            background-color: transparent;
+            color: var(--phosphor);
+            border: 1px solid var(--phosphor);
+            padding: 12px;
+            font-family: var(--font-spy);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            letter-spacing: 1px;
+            margin-top: auto;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--phosphor);
+            color: #000000;
+            box-shadow: 0 0 10px rgba(51, 255, 51, 0.3);
+        }
+
+        button:disabled {
+            border-color: #223322;
+            color: #224422;
+            cursor: not-allowed;
+        }
+
+        .terminal-stream {
+            background-color: #000;
+            border: 1px solid #051005;
+            padding: 12px;
+            height: 120px;
+            overflow-y: auto;
+            font-size: 0.8em;
+            color: var(--phosphor-dim);
+        }
+
+        .terminal-stream p { margin: 3px 0; }
+        .active-text { color: var(--phosphor); }
+        .white-text { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="terminal-header">
+        <h1>Módulo AlephTron v4.0</h1>
+        <div class="subtitle">Destilação Quântica de Entropia Física & Criptografia de Carga</div>
+    </div>
+
+    <div class="grid">
+        
+        <div class="panel">
+            <h2>I. Colheita de Entropia</h2>
+            <div class="chaos-canvas" id="harvest-zone" onmousemove="harvestChaos(event)">
+                <div class="canvas-label" id="canvas-status">Mova o cursor freneticamente aqui dentro para extrair ruído cinético</div>
+            </div>
+            
+            <label>Nível de Caos Armazenado</label>
+            <div class="progress-container">
+                <div class="progress-bar" id="entropy-progress"></div>
+            </div>
+            
+            <label>Semente Térmica Atual (Pool Hex)</label>
+            <div id="pool-preview" style="font-size:0.7em; word-break:break-all; background:#000; padding:8px; height:36px; border:1px solid var(--border); overflow:hidden;">
+                [Aguardando flutuações de hardware...]
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>II. Forjar Assinatura</h2>
+            
+            <label>Comprimento da Chave Operacional</label>
+            <select id="pwd-length">
+                <option value="16">16 Caracteres (Nível de Campo)</option>
+                <option value="32" selected>32 Caracteres (Dossiê de Embaixada)</option>
+                <option value="64">64 Caracteres (Segredo de Estado - Recomendado)</option>
+            </select>
+
+            <label>Conjunto de Codificação</label>
+            <select id="pwd-charset">
+                <option value="alphanumeric">Alfa-Numérico Expandido (Sem símbolos)</option>
+                <option value="total">Caos Total (Letras, Números, Símbolos Militares)</option>
+            </select>
+            
+            <button id="btn-forge" onclick="forgePassword()" disabled>Forjar Palavra-Passe</button>
+        </div>
+
+        <div class="panel full-width">
+            <h2>III. Palavra-Passe Gerada & Exportação para Mídia Física (Pendrive)</h2>
+            <input type="text" id="output-password" readonly placeholder="A chave aparecerá aqui após a destilação de caos..." style="text-align: center; font-size: 1.1em; font-weight: bold; margin-bottom: 15px; letter-spacing: 2px;">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <button id="btn-save" onclick="saveToPendrive()" disabled style="border-color: #ffffff; color: #ffffff;">Despejar no Pendrive (.TXT)</button>
+                <button id="btn-reset" onclick="resetEngine()">Limpar Matriz</button>
+            </div>
+        </div>
+
+        <div class="panel full-width">
+            <h2>IV. Logs de Eventos do Sistema</h2>
+            <div class="terminal-stream" id="term-log">
+                <p>> Motores estáticos ativados. Sistema isolado de rede externa.</p>
+                <p>> Pronto para alimentação de entropia física.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let entropyPool = [];
+        const maxEntropy = 300; // Quantidade de pontos necessários
+        let isFull = false;
+
+        function printLog(text, isActive = false) {
+            const term = document.getElementById('term-log');
+            const p = document.createElement('p');
+            const time = new Date().toTimeString().split(' ')[0];
+            if (isActive) p.className = 'active-text';
+            p.innerHTML = `[${time}] > ${text}`;
+            term.appendChild(p);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // I. Colheita de Caos Baseada no Movimento do Usuário
+        function harvestChaos(event) {
+            if (isFull) return;
+
+            // Coleta coordenadas do mouse + timestamp de alta precisão
+            const x = event.clientX;
+            const y = event.clientY;
+            const time = performance.now();
+
+            // Transforma os dados em um byte derivado do caos cinético
+            const chaosByte = Math.abs(Math.floor((x * y + time) % 256));
+            entropyPool.push(chaosByte);
+
+            // Atualiza visualização
+            const progressPercent = Math.min((entropyPool.length / maxEntropy) * 100, 100);
+            document.getElementById('entropy-progress').style.width = `${progressPercent}%`;
+            
+            if (entropyPool.length % 10 === 0) {
+                document.getElementById('pool-preview').innerText = entropyPool.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            if (entropyPool.length >= maxEntropy && !isFull) {
+                isFull = true;
+                document.getElementById('canvas-status').innerText = "ENTROPIA CAPTURADA. MATRIZ SATURADA.";
+                document.getElementById('canvas-status').style.color = "#ffffff";
+                document.getElementById('btn-forge').disabled = false;
+                printLog("Flutuações térmicas suficientes coletadas. Filtros quânticos prontos.", true);
+            }
+        }
+
+        // II. Forja da Palavra-Passe fundindo CSPRNG + Entropia do Usuário
+        async function forgePassword() {
+            const length = parseInt(document.getElementById('pwd-length').value, 10);
+            const charsetType = document.getElementById('pwd-charset').value;
+            
+            let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            if (charsetType === "total") {
+                charset += "!@#$%^&*()_+-=[]{}|;:,.<>?~/";
+            }
+
+            printLog("Iniciando fundição de chaves. Misturando semente física com hardware CSPRNG...");
+
+            // Cria array com segurança criptográfica nativa do hardware
+            let hardwareCryptoArray = new Uint8Array(length);
+            window.crypto.getRandomValues(hardwareCryptoArray);
+
+            let finalPassword = "";
+
+            for (let i = 0; i < length; i++) {
+                // Junta o Caos do Usuário (Pool) com o Caos do Hardware (CSPRNG) usando uma operação XOR (ou combinação matemática)
+                const userChaosByte = entropyPool[i % entropyPool.length];
+                const hardwareChaosByte = hardwareCryptoArray[i];
+                
+                // Fusão por XOR para embaralhar os espectros de aleatoriedade
+                const fusedEntropy = userChaosByte ^ hardwareChaosByte;
+                
+                // Escolhe o caractere do alfabeto
+                const charIndex = fusedEntropy % charset.length;
+                finalPassword += charset.charAt(charIndex);
+            }
+
+            document.getElementById('output-password').value = finalPassword;
+            document.getElementById('btn-save').disabled = false;
+            printLog("PALAVRA-PASSE FORJADA COM SUCESSO. Rastreamento reverso impossível.", true);
+        }
+
+        // III. Exportação para Armazenamento Frio (Pendrive)
+        function saveToPendrive() {
+            const password = document.getElementById('output-password').value;
+            if (!password) return;
+
+            const textContent = `==================================================\n` +
+                                ` AGÊNCIA SOMBRA - DOSSIÊ DE CREDENCIAIS CRÍTICAS\n` +
+                                `==================================================\n` +
+                                `GERADO EM : ${new Date().toISOString()}\n` +
+                                `CHAVE     : ${password}\n\n` +
+                                `[AVISO] Guarde este arquivo em um pendrive criptografado.\n` +
+                                `Apague vestígios deste terminal após o descarregamento.\n` +
+                                `==================================================`;
+
+            const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            
+            // Sugere um nome discreto para despistar interceptações
+            link.download = "config_sistema_seguro.txt"; 
+            
+            printLog("Disparando pacote de download. Direcione a gravação diretamente para a unidade do seu Pendrive.", false);
+            link.click();
+        }
+
+        // IV. Reset da Máquina
+        function resetEngine() {
+            entropyPool = [];
+            isFull = false;
+            document.getElementById('entropy-progress').style.width = '0%';
+            document.getElementById('output-password').value = '';
+            document.getElementById('pool-preview').innerText = '[Aguardando flutuações de hardware...]';
+            document.getElementById('canvas-status').innerText = "Mova o cursor freneticamente aqui dentro para extrair ruído cinético";
+            document.getElementById('canvas-status').style.color = "var(--phosphor-dim)";
+            document.getElementById('btn-forge').disabled = true;
+            document.getElementById('btn-save').disabled = true;
+            printLog("Matriz de entropia zerada. Memória volátil limpa.");
+        }
+    </script>
+</body>
+</html>

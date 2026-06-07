@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QG Central - Manipulador de Dossiês</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1a1a1a;
+            --text-color: #d4d4d4;
+            --accent-color: #8b0000; /* Vermelho Sangue/Confidencial */
+            --accent-glow: #ff3333;
+            --font-noir: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-noir);
+            margin: 0;
+            padding: 20px;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
+                              url('https://images.unsplash.com/photo-1505673542670-a5e3ff5b14a3?auto=format&fit=crop&q=80&w=1000'); /* Textura sutil de fumaça/noite opcional */
+            background-size: cover;
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            border: 2px solid #333;
+            background: var(--panel-color);
+            box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 10px rgba(0,0,0,0.5);
+            padding: 30px;
+            position: relative;
+        }
+
+        /* Marca d'água de Agência */
+        .container::before {
+            content: "CONFIDENCIAL";
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            color: rgba(139, 0, 0, 0.15);
+            font-size: 3rem;
+            transform: rotate(15deg);
+            border: 5px solid rgba(139, 0, 0, 0.15);
+            padding: 5px 10px;
+            pointer-events: none;
+            font-weight: bold;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-bottom: 2px dashed var(--accent-color);
+            padding-bottom: 15px;
+            margin-top: 0;
+        }
+
+        h1 span {
+            color: var(--accent-color);
+            text-shadow: 0 0 5px var(--accent-glow);
+        }
+
+        .section {
+            border: 1px solid #333;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #151515;
+            position: relative;
+        }
+
+        .section h2 {
+            font-size: 1.2rem;
+            margin-top: 0;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        input[type="file"], input[type="text"], input[type="number"], select {
+            width: 100%;
+            background: #0d0d0d;
+            border: 1px solid #444;
+            color: var(--text-color);
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: var(--font-noir);
+            margin-bottom: 10px;
+        }
+
+        input[type="file"]::-webkit-file-upload-button {
+            background: var(--accent-color);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            font-family: var(--font-noir);
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        input:focus {
+            outline: 1px solid var(--accent-color);
+        }
+
+        .btn {
+            background: #222;
+            color: var(--text-color);
+            border: 1px solid #555;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: var(--font-noir);
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            color: #fff;
+            box-shadow: 0 0 10px var(--accent-glow);
+            border-color: var(--accent-glow);
+        }
+
+        .btn-danger {
+            border-color: #500;
+        }
+        .btn-danger:hover {
+            background: #b00;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            cursor: pointer;
+        }
+
+        .checkbox-container input {
+            margin-right: 10px;
+            accent-color: var(--accent-color);
+        }
+
+        #terminal-log {
+            background: #000;
+            color: #00ff00; /* Verde terminal clássico para as ações executadas */
+            font-family: monospace;
+            padding: 15px;
+            border: 1px solid #333;
+            height: 120px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            margin-top: 20px;
+            box-shadow: inset 0 0 10px rgba(0,255,0,0.2);
+        }
+
+        /* Estilo vintage de carimbo/alerta */
+        .status-stamp {
+            color: var(--accent-color);
+            font-weight: bold;
+            border: 2px dashed var(--accent-color);
+            padding: 5px;
+            text-align: center;
+            display: none;
+            margin-top: 10px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Agência de Inteligência <span>• Bureau de Dossiês</span></h1>
+    <p style="text-align: center; font-size: 0.85rem; color: #777; margin-bottom: 25px;">
+        AVISO: Todo processamento é feito localmente. Nenhuma evidência é enviada ao servidor externo.
+    </p>
+
+    <div class="section">
+        <h2>1. Importar Evidências (PDFs)</h2>
+        <label for="pdf-files">Selecione um ou múltiplos arquivos sob investigação:</label>
+        <input type="file" id="pdf-files" accept="application/pdf" multiple>
+        <small style="color: #666;">Selecione vários arquivos se o objetivo for a "Fusão de Arquivos".</small>
+    </div>
+
+    <div class="section">
+        <h2>2. Modificar Estrutura (Interrogatório do Arquivo)</h2>
+        <div class="grid-2">
+            <div>
+                <label for="delete-pages">Triturar Páginas (Ex: 1, 3, 5):</label>
+                <input type="text" id="delete-pages" placeholder="Deixe em branco para manter todas">
+            </div>
+            <div>
+                <label for="keep-pages">Extrair Apenas Intervalo (Ex: 2-4):</label>
+                <input type="text" id="keep-pages" placeholder="Ex: 1-5 (Ignora a trituração)">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Injetar Informação (Escrever na Página)</h2>
+        <label for="inject-text">Mensagem / Carimbo de Texto:</label>
+        <input type="text" id="inject-text" placeholder="TEXTO CONFIDENCIAL - AGÊNCIA X">
+        
+        <div class="grid-2">
+            <div>
+                <label for="inject-page">Em qual página? (Inicia em 1):</label>
+                <input type="number" id="inject-page" value="1" min="1">
+            </div>
+            <div>
+                <label for="inject-pos">Posição na página:</label>
+                <select id="inject-pos">
+                    <option value="top-left">Canto Superior Esquerdo</option>
+                    <option value="top-right">Canto Superior Direito</option>
+                    <option value="bottom-left">Canto Inferior Esquerdo</option>
+                    <option value="bottom-right">Canto Inferior Direito</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. Codificação e Saída</h2>
+        <div class="checkbox-container">
+            <input type="checkbox" id="pdfa-toggle">
+            <label for="pdfa-toggle" style="display:inline; color: #fff;">
+                <strong>Forçar Padrão PDF/A (Arquivamento Permanente de Segurança)</strong>
+            </label>
+        </div>
+        <p style="font-size: 0.75rem; color: #777; margin-top: -5px; padding-left: 25px;">
+            Ativar os metadados regulamentares e travar fontes padrão para conformidade com arquivos históricos estatais.
+        </p>
+
+        <button class="btn btn-danger" id="process-btn">Processar e Gerar Novo Dossiê</button>
+    </div>
+
+    <div id="terminal-log">> Terminal pronto. Aguardando arquivos confidenciais...</div>
+    <div class="status-stamp" id="status-stamp">Operação Concluída com Sucesso</div>
+</div>
+
+<script>
+    const logElement = document.getElementById('terminal-log');
+    const statusStamp = document.getElementById('status-stamp');
+
+    function log(message, type = 'info') {
+        const prefix = type === 'error' ? '[ERRO MATRIZ] ' : '[OK] ';
+        logElement.innerHTML += `<br>> ${prefix}${message}`;
+        logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    document.getElementById('process-btn').addEventListener('click', async () => {
+        statusStamp.style.display = 'none';
+        const fileInput = document.getElementById('pdf-files');
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+            log('Nenhum arquivo detectado no scanner de segurança. Operação abortada.', 'error');
+            return;
+        }
+
+        log(`Iniciando operação em ${files.length} arquivo(s)...`);
+
+        try {
+            const { PDFDocument, rgb, StandardFonts } = PDFLib;
+            let finalPdfDoc = await PDFDocument.create();
+
+            // --- PASSO 1: FUSÃO OU LEITURA DOS ARQUIVOS ---
+            for (let i = 0; i < files.length; i++) {
+                log(`Descriptografando e lendo: ${files[i].name}...`);
+                const fileBytes = await files[i].arrayBuffer();
+                const sourcePdfDoc = await PDFDocument.load(fileBytes);
+                const pageIndices = Array.from({ length: sourcePdfDoc.getPageCount() }, (_, idx) => idx);
+                
+                // Copia todas as páginas do arquivo de origem para o documento final
+                const copiedPages = await finalPdfDoc.copyPages(sourcePdfDoc, pageIndices);
+                copiedPages.forEach((page) => finalPdfDoc.addPage(page));
+            }
+
+            log(`Fusão concluída. Total de páginas iniciais: ${finalPdfDoc.getPageCount()}`);
+
+            // --- PASSO 2: FILTRAGEM / EXTRAÇÃO / DELEÇÃO DE PÁGINAS ---
+            const keepPagesInput = document.getElementById('keep-pages').value.trim();
+            const deletePagesInput = document.getElementById('delete-pages').value.trim();
+
+            if (keepPagesInput) {
+                // Se definiu intervalo de extração (Ex: 1-3)
+                const parts = keepPagesInput.split('-');
+                const start = parseInt(parts[0], 10) - 1;
+                const end = parseInt(parts[1], 10) - 1;
+
+                if (!isNaN(start) && !isNaN(end)) {
+                    log(`Modo Extração Ativado. Mantendo apenas páginas de ${start+1} até ${end+1}.`);
+                    const totalPages = finalPdfDoc.getPageCount();
+                    // Remove do fim para o começo para não quebrar os índices
+                    for (let i = totalPages - 1; i >= 0; i--) {
+                        if (i < start || i > end) {
+                            finalPdfDoc.removePage(i);
+                        }
+                    }
+                }
+            } else if (deletePagesInput) {
+                // Se definiu páginas específicas para deletar (Ex: 1, 3)
+                const pagesToDelete = deletePagesInput.split(',')
+                                                    .map(p => parseInt(p.trim(), 10) - 1)
+                                                    .sort((a, b) => b - a); // Ordena decrescente para não mudar índice ao deletar
+
+                pagesToDelete.forEach(pageIndex => {
+                    if (pageIndex >= 0 && pageIndex < finalPdfDoc.getPageCount()) {
+                        finalPdfDoc.removePage(pageIndex);
+                        log(`Página ${pageIndex + 1} eliminada com sucesso.`);
+                    }
+                });
+            }
+
+            // --- PASSO 3: INJEÇÃO DE TEXTO ---
+            const textToInject = document.getElementById('inject-text').value.trim();
+            if (textToInject && finalPdfDoc.getPageCount() > 0) {
+                const pageNum = parseInt(document.getElementById('inject-page').value, 10) - 1;
+                
+                if (pageNum >= 0 && pageNum < finalPdfDoc.getPageCount()) {
+                    log(`Injetando carimbo na página ${pageNum + 1}...`);
+                    const pages = finalPdfDoc.getPages();
+                    const targetPage = pages[pageNum];
+                    const { width, height } = targetPage.getSize();
+                    
+                    // Carrega uma fonte padrão
+                    const typewriterFont = await finalPdfDoc.embedFont(StandardFonts.CourierBold);
+                    const fontSize = 12;
+                    
+                    // Define a posição
+                    const posSelection = document.getElementById('inject-pos').value;
+                    let x = 30;
+                    let y = 30;
+
+                    if (posSelection === 'top-left') { x = 30; y = height - 40; }
+                    else if (posSelection === 'top-right') { x = width - 250; y = height - 40; }
+                    else if (posSelection === 'bottom-left') { x = 30; y = 30; }
+                    else if (posSelection === 'bottom-right') { x = width - 250; y = 30; }
+
+                    targetPage.drawText(textToInject, {
+                        x: x,
+                        y: y,
+                        size: fontSize,
+                        font: typewriterFont,
+                        color: rgb(0.54, 0, 0), // Tom de vermelho escuro operacional
+                    });
+                } else {
+                    log('Página de injeção inválida para o tamanho atual do documento.', 'error');
+                }
+            }
+
+            // --- PASSO 4: METADADOS / SIMULAÇÃO PDF/A ---
+            const isPdfa = document.getElementById('pdfa-toggle').checked;
+            if (isPdfa) {
+                log('Injetando metadados regulamentares estruturados do Padrão PDF/A ISO...');
+                // Define metadados rígidos para simular conformidade de arquivo histórico
+                finalPdfDoc.setTitle('DOSSIE_CONFIDENCIAL_ARQUIVADO');
+                finalPdfDoc.setAuthor('Agencia_Central_Noir');
+                finalPdfDoc.setSubject('Evidencias_Classificadas');
+                finalPdfDoc.setProducer('Agencia PDF/A Encoder Engine v1.0');
+                finalPdfDoc.setCreator('Agencia_Central_Noir');
+            }
+
+            // --- COMPILAÇÃO FINAL E DOWNLOAD ---
+            if (finalPdfDoc.getPageCount() === 0) {
+                log('Erro: O documento final não contém nenhuma página.', 'error');
+                return;
+            }
+
+            log('Compilando e criptografando arquivo de saída...');
+            const pdfBytes = await finalPdfDoc.save();
+
+            // Download automático do arquivo modificado
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = isPdfa ? "dossie_final_pdfa.pdf" : "dossie_final_modificado.pdf";
+            link.click();
+
+            log('Dossiê enviado com sucesso para a pasta de downloads.');
+            statusStamp.style.display = 'block';
+
+        } catch (error) {
+            log(`Falha crítica no processamento: ${error.message}`, 'error');
+            console.error(error);
+        }
+    });
+</script>
+
+</body>
+</html>

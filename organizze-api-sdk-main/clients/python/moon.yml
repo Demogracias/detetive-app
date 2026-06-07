@@ -1,0 +1,95 @@
+project:
+  name: python-client
+  description: The python client for the Organizze API SDK
+toolchain:
+  default: python
+language: python
+layer: library
+fileGroups:
+  sources:
+    - organizze_api/**
+    - docs/**
+    - pyproject.toml
+    - uv.lock
+  tests:
+    - tests/**
+    - test/**
+tasks:
+  bump:
+    script: uv version --bump patch && uv sync
+    toolchain: python
+    local: true
+    type: run
+    options:
+      cache: false
+      persistent: false
+      runInCI: false
+  generate-client:
+    script: npx @openapitools/openapi-generator-cli generate -i ../../specs/openapi.yaml -g python -o . -c ../config/python.json
+    toolchain: system
+    type: build
+    inputs:
+      - /specs/openapi.yaml
+      - /clients/config/python.json
+    outputs:
+      - organizze_api/**
+      - docs/**
+      - .gitignore
+      - test/__init__.py
+    options:
+      persistent: false
+      runInCI: true
+      mutex: generate-client
+      outputStyle: buffer-only-failure
+  clean-build:
+    type: run
+    script: rm -rf dist/
+    options:
+      mutex: generate-client
+  build:
+    command: uv build
+    toolchain: python
+    type: build
+    deps:
+      - generate-client
+      - clean-build
+    inputs:
+      - "@group(sources)"
+    outputs:
+      - dist/**
+    options:
+      persistent: false
+      runDepsInParallel: false
+      outputStyle: buffer-only-failure
+      runInCI: true
+  publish:
+    command: uv publish
+    local: true
+    deps:
+      - build
+    options:
+      persistent: true
+      runInCI: false
+      envFile: .env
+  test:
+    command: uv run pytest
+    toolchain: python
+    type: test
+    inputs:
+      - "@group(sources)"
+      - "@group(tests)"
+    options:
+      persistent: false
+      runInCI: true
+      outputStyle: buffer-only-failure
+  typecheck:
+    command: uv run mypy
+    toolchain: python
+    type: test
+    inputs:
+      - "@group(sources)"
+      - "@group(tests)"
+    options:
+      persistent: false
+      runInCI: true
+      outputStyle: buffer-only-failure

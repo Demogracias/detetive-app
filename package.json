@@ -1,0 +1,73 @@
+{
+  "name": "detetive",
+  "version": "1.0.0",
+  "description": "Detetive — App de Estudos + Investigação (offline)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac",
+    "cap:sync": "npx cap sync android",
+    "cap:build": "powershell -ExecutionPolicy Bypass -File build-android.ps1"
+  },
+  "build": {
+    "appId": "com.detetive.app",
+    "productName": "Detetive",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app.html",
+      "tailwind.css",
+      "assets.b64.js",
+      "cdn-assets.js",
+      "iconedoapp.ico"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "iconedoapp.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "iconedoapp_512.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "iconedoapp_512.png",
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "oneClick": false
+    }
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0",
+    "javascript-obfuscator": "^5.4.3",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.3.0",
+    "to-ico": "^1.1.5"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

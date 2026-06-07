@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Análise Preditiva - Agência Sombra</title>
+    <style>
+        :root {
+            --bg-dark: #060608;
+            --panel-bg: #0d0e12;
+            --cyan-glow: #00e5ff;
+            --cyan-dim: #005b66;
+            --alert-red: #ff3333;
+            --warn-yellow: #ffaa00;
+            --safe-green: #00ff66;
+            --text-gray: #949aab;
+            --border: #1b1e25;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 25px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 50%, #11141a 0%, #050507 100%);
+        }
+
+        .header {
+            text-align: center;
+            width: 100%;
+            max-width: 1000px;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 1.3em;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin: 0;
+            text-shadow: 0 0 6px var(--cyan-dim);
+        }
+
+        .grid {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 850px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        h2 {
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #ffffff;
+            border-left: 3px solid var(--cyan-glow);
+            padding-left: 8px;
+        }
+
+        .status-badge {
+            background-color: #000;
+            border: 1px solid var(--border);
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .status-nominal { color: var(--safe-green); text-shadow: 0 0 5px rgba(0, 255, 102, 0.3); }
+        .status-warning { color: var(--warn-yellow); text-shadow: 0 0 5px rgba(255, 170, 0, 0.3); }
+        .status-critical { color: var(--alert-red); text-shadow: 0 0 5px rgba(255, 51, 51, 0.3); }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            padding: 8px 0;
+            border-bottom: 1px solid #13161c;
+        }
+
+        .data-label { color: #565d6d; text-transform: uppercase; }
+        .data-value { color: var(--cyan-glow); font-weight: bold; }
+
+        button {
+            background-color: transparent;
+            color: var(--cyan-glow);
+            border: 1px solid var(--cyan-glow);
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--cyan-glow);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+
+        button:disabled {
+            border-color: #222e33;
+            color: #33474f;
+            cursor: not-allowed;
+        }
+
+        .canvas-container {
+            background-color: #020204;
+            border: 1px solid var(--border);
+            position: relative;
+            padding: 10px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 220px;
+            display: block;
+        }
+
+        .terminal {
+            background-color: #020203;
+            border: 1px solid #111317;
+            padding: 12px;
+            height: 120px;
+            overflow-y: auto;
+            font-size: 0.8em;
+            color: #616775;
+            line-height: 1.4;
+        }
+
+        .terminal p { margin: 3px 0; }
+        .term-alert { color: var(--warn-yellow); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Análise de Fadiga Mecânica // Projeto Sentinela</h1>
+    </div>
+
+    <div class="grid">
+        
+        <div class="panel">
+            <h2>I. Diagnóstico do Ativo</h2>
+            
+            <div class="status-badge status-nominal" id="main-status">
+                SISTEMA EM ESPERA
+            </div>
+
+            <div class="data-row">
+                <span class="data-label">Aceleração X</span>
+                <span class="data-value" id="val-x">0.00 m/s²</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Aceleração Y</span>
+                <span class="data-value" id="val-y">0.00 m/s²</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Aceleração Z</span>
+                <span class="data-value" id="val-z">0.00 m/s²</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Resultante (G)</span>
+                <span class="data-value" id="val-mag">0.00 m/s²</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Fator de Crista</span>
+                <span class="data-value" id="val-crest">0.00</span>
+            </div>
+
+            <button id="btn-sensor" onclick="initSensors()">Ativar Captura Real</button>
+            <button id="btn-sim" onclick="toggleSimulation()">Injetar Ruído (Simulador)</button>
+        </div>
+
+        <div class="panel">
+            <h2>II. Espectro de Vibração Temporal (Onda de Choque)</h2>
+            <div class="canvas-container">
+                <canvas id="waveCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="panel full-width">
+            <h2>III. Relatório Cronológico do Motor Preditivo</h2>
+            <div class="terminal" id="term-log">
+                <p>> Motores preditivos inicializados. Aguardando vetor cinético...</p>
+                <p>> Diretiva: Monitore picos de oscilação para evitar colapso estrutural por fadiga.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let isSimulating = false;
+        let sensorActive = false;
+        let historyData = Array(100).fill(0); // Janela móvel de leitura
+        let peakValue = 0;
+
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Ajusta resolução interna do canvas
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth - 20;
+            canvas.height = 220;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function printLog(msg, isAlert = false) {
+            const term = document.getElementById('term-log');
+            const p = document.createElement('p');
+            if (isAlert) p.className = 'term-alert';
+            p.innerText = `[${new Date().toTimeString().split(' ')[0]}] > ${msg}`;
+            term.appendChild(p);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // --- MOTOR DE PROCESAMENTO TÁTICO (ANÁLISE PREDITIVA) ---
+        function processVibration(x, y, z) {
+            // Calcula a magnitude vetorial instantânea (descontando ruídos estáticos mínimos)
+            let magnitude = Math.sqrt(x*x + y*y + z*z);
+            
+            // Alimentação da janela móvel
+            historyData.push(magnitude);
+            historyData.shift();
+
+            if (magnitude > peakValue) peakValue = magnitude;
+            // Reseta o pico lentamente ao longo do tempo para análise dinâmica
+            peakValue *= 0.98; 
+
+            // Cálculo simplificado do Fator de Crista (Pico / Média das últimas amostras)
+            let sum = historyData.reduce((a, b) => a + b, 0);
+            let avg = sum / historyData.length || 1;
+            let crestFactor = peakValue / (avg || 1);
+
+            // Atualização da Interface
+            document.getElementById('val-x').innerText = `${x.toFixed(2)} m/s²`;
+            document.getElementById('val-y').innerText = `${y.toFixed(2)} m/s²`;
+            document.getElementById('val-z').innerText = `${z.toFixed(2)} m/s²`;
+            document.getElementById('val-mag').innerText = `${magnitude.toFixed(2)} m/s²`;
+            document.getElementById('val-crest').innerText = crestFactor.toFixed(2);
+
+            // Classificação Preditiva Thresholds
+            const statusBadge = document.getElementById('main-status');
+            
+            if (magnitude > 12) {
+                statusBadge.innerText = "CRÍTICO: CAVITAÇÃO / FALHA IMINENTE";
+                statusBadge.className = "status-badge status-critical";
+                if(Math.random() < 0.05) printLog("ALERTA: Padrão harmônico destrutivo detectado no mancal central.", true);
+            } else if (magnitude > 5.5) {
+                statusBadge.innerText = "ATENÇÃO: DESALINHAMENTO DE EIXO";
+                statusBadge.className = "status-badge status-warning";
+                if(Math.random() < 0.02) printLog("ANOMALIA: Desvio exótico no espectro radial. Rolamento operando sob estresse térmico.");
+            } else {
+                statusBadge.innerText = "STATUS: OPERAÇÃO NOMINAL";
+                statusBadge.className = "status-badge status-nominal";
+            }
+
+            drawTelemetry();
+        }
+
+        // --- RENDERIZADOR GRÁFICO (SISMÓGRAFO) ---
+        function drawTelemetry() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Grade de fundo
+            ctx.strokeStyle = "#11151d";
+            ctx.lineWidth = 1;
+            for(let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for(let j = 0; j < canvas.height; j += 40) {
+                ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+            }
+
+            // Linha base central
+            ctx.strokeStyle = "#202633";
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+
+            // Renderização da Linha de Onda de Impacto
+            ctx.strokeStyle = "#00e5ff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            let step = canvas.width / (historyData.length - 1);
+            for(let i = 0; i < historyData.length; i++) {
+                // Mapeia o valor para cima e para baixo simetricamente para criar um efeito sismográfico estético
+                let val = historyData[i] * 8; // Fator de ganho visual
+                let x = i * step;
+                let y = (canvas.height / 2) + (i % 2 === 0 ? val : -val);
+
+                if(i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // --- INFRAESTRUTURA DE CAPTURA DO HARDWARE (ACELERÔMETRO) ---
+        async function initSensors() {
+            if (typeof DeviceMotionEvent !== 'undefined') {
+                // Verificação de permissão exigida por ambientes mobile/iOS modernos
+                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                    try {
+                        const permissionState = await DeviceMotionEvent.requestPermission();
+                        if (permissionState === 'granted') {
+                            startDeviceMotionListener();
+                        } else {
+                            printLog("Permissão negada pelo agente de segurança do dispositivo.", true);
+                        }
+                    } catch (err) {
+                        printLog("Erro ao requisitar barramento inercial: " + err.message, true);
+                    }
+                } else {
+                    // Navegadores desktop padrão que expõem o evento diretamente
+                    startDeviceMotionListener();
+                }
+            } else {
+                printLog("API Inercial não suportada neste hardware. Use o Modo Injetor de Ruído.", true);
+            }
+        }
+
+        function startDeviceMotionListener() {
+            if(sensorActive) return;
+            sensorActive = true;
+            isSimulating = false;
+            document.getElementById('btn-sensor').disabled = true;
+            printLog("Conexão estabelecida com o barramento do acelerômetro físico. Monitoramento ativo.");
+
+            window.addEventListener('devicemotion', (event) => {
+                // Tenta capturar aceleração limpa, se não houver, usa com gravidade inclusa
+                let acc = event.acceleration || event.accelerationIncludingGravity;
+                
+                if(!acc || acc.x === null) {
+                    // Fallback automático se os dados vierem vazios (comum em notebooks sem o sensor mapeado no driver do browser)
+                    return;
+                }
+                processVibration(acc.x, acc.y, acc.z);
+            });
+        }
+
+        // --- MÓDULO INJETOR (SIMULADOR DE CAMPO) ---
+        let simInterval = null;
+        function toggleSimulation() {
+            const btn = document.getElementById('btn-sim');
+            if (isSimulating) {
+                clearInterval(simInterval);
+                isSimulating = false;
+                btn.innerText = "Injetar Ruído (Simulador)";
+                printLog("Injetor de ruído desligado.");
+            } else {
+                if(sensorActive) {
+                    alert("Desative a leitura real antes de simular injeções artificiais.");
+                    return;
+                }
+                isSimulating = true;
+                btn.innerText = "Parar Injetor";
+                printLog("Sinal sintético acoplado à malha. Simulando rotação de turbina industrial.");
+                
+                let timeToken = 0;
+                simInterval = setInterval(() => {
+                    timeToken += 0.2;
+                    
+                    // Cria uma onda base normal com picos randômicos simulando falhas cíclicas
+                    let baseNoise = Math.sin(timeToken) * 2;
+                    let anomalyTrigger = Math.random() > 0.95 ? Math.random() * 14 : 0;
+                    
+                    let simX = baseNoise + (Math.random() - 0.5) * 2 + anomalyTrigger;
+                    let simY = (Math.cos(timeToken) * 1.5) + (Math.random() - 0.5) * 1;
+                    let simZ = (Math.sin(timeToken * 0.5) * 1) + anomalyTrigger * 0.3;
+
+                    processVibration(simX, simY, simZ);
+                }, 100);
+            }
+        }
+
+        // Desenha estado vazio inicial
+        drawTelemetry();
+    </script>
+</body>
+</html>

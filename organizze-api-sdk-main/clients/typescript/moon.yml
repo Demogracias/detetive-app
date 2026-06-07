@@ -1,0 +1,85 @@
+project:
+  name: typescript-client
+  description: The typescript client for the Organizze API SDK
+toolchain:
+  default: node
+language: typescript
+layer: library
+fileGroups:
+  sources:
+    - apis/**
+    - models/**
+    - index.ts
+    - runtime.ts
+    - package.json
+    - bun.lock
+    - tsconfig.json
+tasks:
+  bump:
+    command: npm version patch --git-tag-version=false
+    toolchain: node
+    local: true
+    type: run
+    options:
+      persistent: false
+      runInCI: false
+  generate-client:
+    script: npx @openapitools/openapi-generator-cli generate -i ../../specs/openapi.yaml -g typescript-fetch -o . -c ../config/typescript.json
+    toolchain: node
+    type: build
+    inputs:
+      - /specs/openapi.yaml
+      - /clients/config/typescript.json
+    outputs:
+      - apis/**
+      - docs/**
+      - models/**
+      - index.ts
+      - runtime.ts
+    options:
+      persistent: false
+      outputStyle: buffer-only-failure
+      runInCI: true
+      mutex: ts-client
+  build:
+    command: npm run build
+    type: build
+    local: true
+    toolchain: node
+    deps:
+      - generate-client
+    inputs:
+      - "@group(sources)"
+      - docs/**
+      - README.md
+      - LICENSE
+    outputs:
+      - dist/**
+    options:
+      persistent: false
+      runDepsInParallel: false
+      outputStyle: buffer-only-failure
+      cache: true
+      runInCI: true
+  publish:
+    command: npm publish
+    toolchain: node
+    local: true
+    deps:
+      - build
+    type: run
+    options:
+      persistent: true
+      runInCI: false
+  test:
+    command: npm run test:all
+    toolchain: node
+    type: test
+    inputs:
+      - "@group(sources)"
+      - tests/**
+    options:
+      persistent: false
+      runInCI: true
+      outputStyle: buffer-only-failure
+      mutex: ts-client

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agência Noir: Dossiê de Engenharia Social</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        noir: {
+                            900: '#0a0a0a',
+                            800: '#1a1a1a',
+                            700: '#2d2d2d',
+                            text: '#e0e0e0',
+                            red: '#8b0000',
+                            gold: '#c5a059'
+                        }
+                    },
+                    fontFamily: {
+                        typewriter: ['"Special Elite"', 'cursive'],
+                        terminal: ['"VT323"', 'monospace'],
+                        doc: ['"Courier Prime"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Efeito de scanline de monitores antigos */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.6;
+        }
+
+        /* Ruído / Granulação sutil para o estilo Noir */
+        .noise {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 40;
+            opacity: 0.05;
+            background-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+        }
+
+        .terminal-container {
+            width: 95vw;
+            max-width: 1200px;
+            height: 90vh;
+            background: #0f0f0f;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 30px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            border-bottom: 2px solid #333;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+        }
+
+        .nav-button {
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .nav-button:hover {
+            color: #c5a059;
+            background-color: rgba(197, 160, 89, 0.1);
+        }
+
+        .nav-button.active {
+            color: #c5a059;
+            border-left: 3px solid #c5a059;
+            background-color: rgba(197, 160, 89, 0.05);
+        }
+
+        /* Carimbo de Confidencial */
+        .stamp {
+            display: inline-block;
+            color: #8b0000;
+            border: 4px solid #8b0000;
+            padding: 5px 15px;
+            font-family: 'Special Elite', cursive;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 5px;
+            transform: rotate(-15deg);
+            opacity: 0.8;
+            mask-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='); /* textura falsa */
+            -webkit-mask-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.5"/%3E%3C/svg%3E');
+        }
+
+        .typing-cursor::after {
+            content: '█';
+            animation: blink 1s step-start infinite;
+            color: #c5a059;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        .paper-bg {
+            background-color: #1c1c1c;
+            border: 1px solid #333;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Scrollbar customizada */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+    </style>
+</head>
+<body class="font-doc antialiased selection:bg-noir-gold selection:text-black">
+
+    <div class="scanlines"></div>
+    <div class="noise"></div>
+
+    <div class="terminal-container rounded-sm flex flex-col">
+        <!-- Header -->
+        <header class="header p-4 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-4">
+                <i class="fas fa-user-secret text-3xl text-noir-gold"></i>
+                <div>
+                    <h1 class="font-terminal text-2xl text-noir-gold tracking-widest uppercase">Sistema de Inteligência Central</h1>
+                    <p class="font-terminal text-xs text-gray-500 uppercase tracking-widest">Divisão de Guerra Psicológica | Acesso Nível: Confidencial</p>
+                </div>
+            </div>
+            <div class="text-right font-terminal text-noir-red animate-pulse">
+                <span id="clock">00:00:00</span> <br>
+                <span class="text-xs">SESSÃO SEGURA</span>
+            </div>
+        </header>
+
+        <!-- Main Body -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar / Dossiês -->
+            <nav class="w-64 border-r border-gray-800 bg-noir-900 flex flex-col py-4 shrink-0 overflow-y-auto">
+                <div class="px-4 mb-4">
+                    <h2 class="font-typewriter text-gray-500 text-sm border-b border-gray-700 pb-1">ÍNDICE DE DOSSIÊS</h2>
+                </div>
+                
+                <ul class="flex flex-col gap-1 text-sm font-terminal text-lg" id="nav-list">
+                    <!-- Links gerados via JS -->
+                </ul>
+
+                <div class="mt-auto px-4 pt-8">
+                    <div class="stamp text-sm rotate-0 transform-none text-center border-2 py-1 opacity-50">
+                        USO INTERNO
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <main class="flex-1 p-8 overflow-y-auto relative bg-noir-800" id="main-content">
+                <!-- Conteúdo injetado aqui -->
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Relógio
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-BR', { hour12: false });
+            document.getElementById('clock').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Banco de Dados de Conteúdo
+        const dossiers = [
+            {
+                id: 'intro',
+                title: '00. Introdução',
+                icon: 'fa-file-alt',
+                content: `
+                    <div class="absolute top-4 right-8"><div class="stamp">TOP SECRET</div></div>
+                    <h2 class="font-typewriter text-3xl text-noir-gold mb-6 mt-4">Memorando: O Fator Humano</h2>
+                    
+                    <div class="paper-bg p-6 rounded text-gray-300 leading-relaxed font-doc space-y-4">
+                        <p><strong>DE:</strong> Diretoria de Contra-Inteligência</p>
+                        <p><strong>PARA:</strong> Agente Operacional</p>
+                        <p><strong>ASSUNTO:</strong> Ameaças de Engenharia Social</p>
+                        <hr class="border-gray-700 my-4">
+                        
+                        <p id="typewriter-target" class="typing-cursor"></p>
+                        
+                        <div id="hidden-intro-content" class="hidden opacity-0 transition-opacity duration-1000 mt-4 space-y-4">
+                            <p>Os adversários modernos raramente perdem tempo tentando quebrar criptografias de nível militar. Eles procuram a vulnerabilidade mais explorável: <span class="text-noir-red font-bold">a psicologia humana.</span></p>
+                            
+                            <p><strong>Engenharia Social</strong> é a arte de manipular pessoas para que forneçam informações confidenciais ou realizem ações que comprometam a segurança. Não é hacking de máquinas; é hacking de mentes.</p>
+                            
+                            <p>Neste dossiê, você estudará as táticas inimigas. Seu objetivo não é aplicar estas técnicas, mas sim reconhecê-las instantaneamente para proteger os ativos da Agência. Navegue pelos arquivos à esquerda para iniciar seu treinamento.</p>
+                            
+                            <p class="font-typewriter text-noir-gold mt-8">"Confie, mas verifique."</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 'phishing',
+                title: '01. Phishing',
+                icon: 'fa-fish',
+                content: `
+                    <h2 class="font-typewriter text-3xl text-noir-gold mb-6 mt-4">Arquivo 01: Phishing (A Isca)</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="bg-noir-900 border border-gray-700 p-4 rounded">
+                                <h3 class="text-noir-red font-bold border-b border-gray-700 pb-2 mb-2"><i class="fas fa-crosshairs mr-2"></i>Modus Operandi</h3>
+                                <p class="text-sm text-gray-300">O atacante lança uma rede ampla usando e-mails, SMS (Smishing) ou voz (Vishing) falsificados, fingindo ser uma entidade confiável (banco, suporte de TI, chefe).</p>
+                                <p class="text-sm text-gray-300 mt-2">O objetivo é induzir urgência ou medo para que a vítima clique em um link malicioso ou baixe um anexo infectado.</p>
+                            </div>
+
+                            <div class="bg-noir-900 border border-noir-gold p-4 rounded relative overflow-hidden">
+                                <div class="absolute top-0 right-0 bg-noir-gold text-black text-xs font-bold px-2 py-1">DEFESA</div>
+                                <h3 class="text-noir-gold font-bold mb-2"><i class="fas fa-shield-alt mr-2"></i>Contramedidas</h3>
+                                <ul class="list-disc list-inside text-sm text-gray-300 space-y-1">
+                                    <li>Inspecione URLs (passe o mouse antes de clicar).</li>
+                                    <li>Desconfie de senso de urgência ("Sua conta será bloqueada hoje!").</li>
+                                    <li>Nunca abra anexos não solicitados.</li>
+                                    <li>Verifique o remetente (não apenas o nome, mas o endereço de e-mail real).</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="paper-bg p-4 rounded font-terminal text-sm border border-gray-600">
+                            <h4 class="text-gray-500 mb-2 uppercase border-b border-gray-700 pb-1">Evidência Interceptada #A-42</h4>
+                            <div class="bg-black p-3 text-gray-400 mt-2">
+                                <p><strong>De:</strong> suporteseguranca@paypal-update-info.com.br <span class="text-noir-red text-xs">(FALSO)</span></p>
+                                <p><strong>Assunto:</strong> URGENTE: Atividade suspeita na sua conta!</p>
+                                <br>
+                                <p>Prezado cliente,</p>
+                                <p>Detectamos uma compra de R$ 4.500,00 em sua conta. Se não foi você, clique no link abaixo IMEDIATAMENTE para cancelar a transação, ou sua conta será suspensa preventivamente.</p>
+                                <br>
+                                <p class="text-blue-500 underline cursor-not-allowed">http://bit.ly/cancelamento-seguro-pp</p>
+                            </div>
+                            <p class="text-noir-red text-xs mt-2 mt-4"><i class="fas fa-exclamation-triangle"></i> ANÁLISE: Domínio falso, tom alarmista, link ofuscado.</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 'pretexting',
+                title: '02. Pretexting',
+                icon: 'fa-masks-theater',
+                content: `
+                    <h2 class="font-typewriter text-3xl text-noir-gold mb-6 mt-4">Arquivo 02: Pretexting (A Máscara)</h2>
+                    
+                    <div class="space-y-6">
+                        <div class="flex gap-4 items-start">
+                            <div class="text-4xl text-gray-600"><i class="fas fa-user-tie"></i></div>
+                            <div>
+                                <p class="text-gray-300 text-lg">Ao contrário do Phishing genérico, o Pretexting envolve a criação de um cenário (pretexto) altamente elaborado e focado em uma vítima específica.</p>
+                                <p class="text-gray-400 mt-2">O atacante faz uma pesquisa prévia (OSINT - Inteligência de Fontes Abertas) para reunir informações reais (nomes de colegas, projetos atuais) e construir credibilidade.</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-noir-900 border-l-4 border-noir-red p-4 mt-6">
+                            <h3 class="text-white font-bold mb-2">Exemplo Operacional:</h3>
+                            <p class="text-gray-400 font-terminal">"Alô, Roberto? Aqui é o Carlos, da TI terceirizada. O Diretor Silva me pediu para atualizar o software do projeto 'Alpha' no seu terminal antes da reunião das 14h. Preciso que você baixe este executável no portal de suporte interno temporário..."</p>
+                            <p class="text-noir-gold text-sm mt-3"><i class="fas fa-check-circle"></i> <strong>A Isca:</strong> Nomes reais (Carlos, Silva), conhecimento de projetos internos (Alpha).</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mt-6">
+                            <div class="bg-gray-800 p-4 rounded border border-gray-700">
+                                <h4 class="text-noir-gold font-bold mb-2"><i class="fas fa-eye mr-2"></i>Como Detectar</h4>
+                                <ul class="text-sm text-gray-300 list-disc list-inside space-y-1">
+                                    <li>Pedidos incomuns de informações sensíveis.</li>
+                                    <li>Tentativa de pular processos burocráticos estabelecidos.</li>
+                                    <li>Name-dropping (citar pessoas importantes para intimidar).</li>
+                                </ul>
+                            </div>
+                            <div class="bg-gray-800 p-4 rounded border border-gray-700">
+                                <h4 class="text-noir-gold font-bold mb-2"><i class="fas fa-shield-alt mr-2"></i>Como Defender</h4>
+                                <ul class="text-sm text-gray-300 list-disc list-inside space-y-1">
+                                    <li><strong>Verificação Independente:</strong> Desligue e ligue de volta para o número oficial da pessoa/departamento.</li>
+                                    <li>Siga os protocolos rigorosamente, independentemente de quem esteja pedindo.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 'baiting',
+                title: '03. Baiting & Tailgating',
+                icon: 'fa-usb',
+                content: `
+                    <h2 class="font-typewriter text-3xl text-noir-gold mb-6 mt-4">Arquivo 03: Iscas e Infiltração Física</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Baiting -->
+                        <div class="paper-bg p-5 rounded border-t-4 border-t-noir-red">
+                            <h3 class="text-xl font-bold text-white mb-3"><i class="fab fa-usb mr-2"></i>Baiting (A Armadilha)</h3>
+                            <p class="text-gray-300 text-sm mb-4">Usa a curiosidade ou a ganância humana. O atacante deixa um dispositivo físico infectado (como um pendrive) em um local estratégico onde a vítima o encontrará.</p>
+                            
+                            <div class="bg-black p-3 border border-gray-700 rounded mb-4">
+                                <p class="text-xs text-gray-500 uppercase">Cenário</p>
+                                <p class="text-sm text-gray-400 mt-1">Um pendrive rotulado "Folha de Pagamento_Confidencial.xlsx" deixado no estacionamento da empresa. Quem achar vai plugar no computador do trabalho para ver o conteúdo, executando malware automaticamente.</p>
+                            </div>
+                            
+                            <p class="text-noir-gold text-sm"><strong>Defesa:</strong> Nunca conecte dispositivos desconhecidos. Entregue-os à segurança.</p>
+                        </div>
+
+                        <!-- Tailgating -->
+                        <div class="paper-bg p-5 rounded border-t-4 border-t-gray-500">
+                            <h3 class="text-xl font-bold text-white mb-3"><i class="fas fa-door-open mr-2"></i>Tailgating (A Carona)</h3>
+                            <p class="text-gray-300 text-sm mb-4">Ataque físico onde uma pessoa não autorizada segue uma pessoa autorizada para dentro de uma área restrita, burlando controles de acesso (catracas, portas com crachá).</p>
+                            
+                            <div class="bg-black p-3 border border-gray-700 rounded mb-4">
+                                <p class="text-xs text-gray-500 uppercase">Cenário</p>
+                                <p class="text-sm text-gray-400 mt-1">O atacante se aproxima da porta segurando caixas pesadas ou cafés. A vítima, por educação ("segurar a porta"), permite a entrada do indivíduo sem exigir que ele passe o crachá.</p>
+                            </div>
+                            
+                            <p class="text-noir-gold text-sm"><strong>Defesa:</strong> A cortesia não supera a segurança. Desafie desconhecidos: "Posso ver seu crachá?" ou não segure a porta em áreas restritas.</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 'quiz',
+                title: '04. Avaliação de Campo',
+                icon: 'fa-clipboard-check',
+                content: `
+                    <div class="absolute top-4 right-8"><div class="stamp border-noir-gold text-noir-gold" style="border-color: #c5a059; color: #c5a059;">SIMULAÇÃO</div></div>
+                    <h2 class="font-typewriter text-3xl text-noir-gold mb-6 mt-4">Simulador de Ameaças</h2>
+                    
+                    <div id="quiz-container" class="max-w-2xl mx-auto mt-8">
+                        <div class="bg-noir-900 border border-gray-600 p-6 rounded shadow-lg relative">
+                            <div class="absolute -top-3 left-4 bg-gray-800 px-2 text-xs text-gray-400 font-terminal uppercase tracking-widest">Cenário Operacional Alpha</div>
+                            
+                            <p class="text-gray-200 text-lg mb-6 leading-relaxed">Você está em seu posto na agência. O telefone toca. A pessoa do outro lado diz: <br><br>
+                            <em class="text-gray-400">"Agente, aqui é o Diretor de Operações de TI. O servidor principal está sob ataque crítico. Preciso que você acesse a URL interna <strong>http://10.0.x.admin-sys.com/login</strong> agora e entre com suas credenciais para isolar seu terminal, ou seus dados serão comprometidos em 2 minutos."</em></p>
+                            
+                            <h3 class="text-noir-gold font-bold mb-4 uppercase text-sm">Qual é a sua ação imediata?</h3>
+                            
+                            <div class="space-y-3" id="quiz-options">
+                                <button onclick="answerQuiz(false, this)" class="w-full text-left p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-gray-300 transition-colors">
+                                    A) Acessar a URL imediatamente e inserir os dados. É uma ordem do Diretor de TI e há urgência.
+                                </button>
+                                <button onclick="answerQuiz(true, this)" class="w-full text-left p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-gray-300 transition-colors">
+                                    B) Desligar o telefone. Ligar para o ramal oficial cadastrado da TI ou do Diretor para verificar a veracidade da emergência.
+                                </button>
+                                <button onclick="answerQuiz(false, this)" class="w-full text-left p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-gray-300 transition-colors">
+                                    C) Perguntar o nome da mãe dele para confirmar sua identidade.
+                                </button>
+                            </div>
+
+                            <div id="quiz-feedback" class="hidden mt-6 p-4 rounded border"></div>
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        let currentDossier = 'intro';
+        const mainContent = document.getElementById('main-content');
+        const navList = document.getElementById('nav-list');
+
+        // Renderização da Navegação
+        function renderNav() {
+            navList.innerHTML = dossiers.map(d => `
+                <li>
+                    <button onclick="loadDossier('${d.id}')" 
+                            class="nav-button w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-800 ${currentDossier === d.id ? 'active' : ''}">
+                        <i class="fas ${d.icon} w-5 text-center"></i>
+                        <span>${d.title}</span>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        // Efeito de Máquina de Escrever para a Intro
+        let typeWriterTimeout;
+        function runTypewriter() {
+            const target = document.getElementById('typewriter-target');
+            const hiddenContent = document.getElementById('hidden-intro-content');
+            if(!target) return;
+            
+            const text = "Acesso autorizado. Descriptografando arquivos operacionais...";
+            target.innerHTML = '';
+            let i = 0;
+            
+            clearTimeout(typeWriterTimeout);
+            
+            function type() {
+                if (i < text.length) {
+                    target.innerHTML += text.charAt(i);
+                    i++;
+                    typeWriterTimeout = setTimeout(type, 30); // velocidade digitação
+                } else {
+                    target.classList.remove('typing-cursor');
+                    setTimeout(() => {
+                        hiddenContent.classList.remove('hidden');
+                        setTimeout(() => {
+                            hiddenContent.classList.remove('opacity-0');
+                        }, 50);
+                    }, 400);
+                }
+            }
+            type();
+        }
+
+        // Carregamento de Conteúdo
+        function loadDossier(id) {
+            currentDossier = id;
+            renderNav();
+            
+            const dossier = dossiers.find(d => d.id === id);
+            
+            // Efeito de glitch/piscar ao trocar
+            mainContent.style.opacity = 0;
+            
+            setTimeout(() => {
+                mainContent.innerHTML = dossier.content;
+                mainContent.style.opacity = 1;
+                
+                if(id === 'intro') {
+                    runTypewriter();
+                }
+            }, 150);
+        }
+
+        // Lógica do Quiz
+        window.answerQuiz = function(isCorrect, btnElement) {
+            const buttons = document.querySelectorAll('#quiz-options button');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.classList.remove('hidden');
+
+            if (isCorrect) {
+                btnElement.classList.remove('bg-gray-800', 'opacity-50');
+                btnElement.classList.add('bg-green-900', 'border-green-500', 'text-white', 'opacity-100');
+                feedback.classList.add('bg-green-900', 'border-green-500', 'text-green-100');
+                feedback.innerHTML = `
+                    <h4 class="font-bold mb-2 uppercase tracking-wider"><i class="fas fa-check-circle mr-2"></i>Avaliação Positiva</h4>
+                    <p class="text-sm">Excelente, Agente. Esta foi uma clássica tentativa de <strong>Pretexting (usar autoridade falsa)</strong> combinada com um gatilho de <strong>Urgência</strong>. A verificação independente através de canais oficiais é a defesa número um. O link fornecido era malicioso.</p>
+                `;
+            } else {
+                btnElement.classList.remove('bg-gray-800', 'opacity-50');
+                btnElement.classList.add('bg-red-900', 'border-red-500', 'text-white', 'opacity-100');
+                feedback.classList.add('bg-red-900', 'border-red-500', 'text-red-100');
+                feedback.innerHTML = `
+                    <h4 class="font-bold mb-2 uppercase tracking-wider"><i class="fas fa-times-circle mr-2"></i>Você foi comprometido</h4>
+                    <p class="text-sm">Agente, você caiu na armadilha. A urgência fabricada ofuscou seu julgamento. O atacante se passou por uma autoridade (Pretexting) e induziu pânico para fazer você ignorar protocolos. Nunca confie na identificação do chamador sem verificação independente.</p>
+                    <button onclick="loadDossier('quiz')" class="mt-4 px-4 py-2 bg-black border border-red-500 hover:bg-red-800 text-xs uppercase tracking-widest transition">Reiniciar Simulação</button>
+                `;
+            }
+        }
+
+        // Inicialização
+        renderNav();
+        loadDossier('intro');
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Segundo Cérebro - Zettelkasten</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; }
+        #network-container { width: 100%; height: 100%; background-color: #1a1a1a; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1f1f1f; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-zinc-900 border-b border-zinc-800 p-4 flex justify-between items-center z-10">
+        <h1 class="text-xl font-bold tracking-wider text-zinc-200">🧠 Segundo Cérebro Nexus</h1>
+        <div class="flex gap-3">
+            <button onclick="exportarCerebro()" class="bg-zinc-800 hover:bg-zinc-700 text-sm font-medium py-2 px-4 rounded border border-zinc-700 transition cursor-pointer">
+                📥 Salvar Cérebro (Exportar com Mídias)
+            </button>
+            <label class="bg-zinc-800 hover:bg-zinc-700 text-sm font-medium py-2 px-4 rounded border border-zinc-700 transition cursor-pointer">
+                📤 Carregar Cérebro (Upload)
+                <input type="file" id="import-file" class="hidden" accept=".json" onchange="importarCerebro(event)">
+            </label>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        
+        <aside class="w-85 bg-zinc-900/50 border-r border-zinc-800 p-4 flex flex-col gap-4 overflow-y-auto custom-scroll">
+            <div class="flex justify-between items-center">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-zinc-400">Nota / Zettel</h2>
+                <button onclick="limparFormulario()" class="text-xs text-zinc-500 hover:text-zinc-300 underline">Nova Nota</button>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium text-zinc-400 mb-1">Título da Nota</label>
+                <input type="text" id="note-title" placeholder="Ex: Teoria da Relatividade" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-zinc-200 focus:outline-none focus:border-blue-500 text-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-400 mb-1">Categoria (Padrão de Cor)</label>
+                <select id="note-type" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-zinc-200 focus:outline-none focus:border-blue-500 text-sm">
+                    <option value="informacao">ℹ️ Informação (Azul Marinho)</option>
+                    <option value="emocao">❤️ Emoção (Vermelho)</option>
+                    <option value="duvida">❓ Dúvida (Verde)</option>
+                    <option value="visual">🎨 Visual (Amarelo)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-400 mb-1">Conteúdo da Nota</label>
+                <p class="text-[10px] text-zinc-500 mb-1">Use [[Nome da Nota]] para criar links diretos e grossos.</p>
+                <textarea id="note-content" rows="5" placeholder="Escreva aqui... Conecte usando [[Outra Nota]]. Palavras repetidas criam conexões opacas automáticas." class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-zinc-200 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+            </div>
+
+            <div class="border-t border-zinc-800 pt-3">
+                <label class="block text-xs font-medium text-zinc-400 mb-1">🖼️ Upload de Imagem</label>
+                <input type="file" id="note-image" accept="image/*" class="w-full text-xs text-zinc-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 cursor-pointer">
+                <div id="image-preview-container" class="mt-2 hidden relative group">
+                    <img id="image-preview" src="" class="max-h-28 rounded border border-zinc-700 mx-auto bg-zinc-950 object-contain p-1">
+                    <button onclick="removerMidia('image')" class="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Remover</button>
+                </div>
+            </div>
+
+            <div class="border-t border-zinc-800 pt-3">
+                <label class="block text-xs font-medium text-zinc-400 mb-1">🎵 Upload de Som/Áudio</label>
+                <input type="file" id="note-sound" accept="audio/*" class="w-full text-xs text-zinc-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 cursor-pointer">
+                <div id="sound-preview-container" class="mt-2 hidden relative p-2 bg-zinc-950 rounded border border-zinc-800">
+                    <audio id="sound-preview" controls class="w-full h-8"></audio>
+                    <button onclick="removerMidia('sound')" class="mt-1 w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 text-[10px] py-0.5 rounded border border-red-900/50 transition">Remover Áudio</button>
+                </div>
+            </div>
+
+            <button onclick="salvarNota()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded transition mt-2 shadow-lg shadow-blue-600/10 cursor-pointer">
+                ⚡ Salvar e Conectar Nota
+            </button>
+        </aside>
+
+        <main class="flex-1 relative">
+            <div id="network-container"></div>
+        </main>
+    </div>
+
+    <script>
+        let notas = {};
+        let network = null;
+        let nodesDataset = new vis.DataSet([]);
+        let edgesDataset = new vis.DataSet([]);
+        
+        let base64ImagemTemporaria = null;
+        let base64SomTemporario = null;
+
+        const coresCategoria = {
+            informacao: { background: '#13294b', border: '#2563eb', highlight: '#3b82f6' }, 
+            emocao: { background: '#7f1d1d', border: '#ef4444', highlight: '#f87171' },     
+            duvida: { background: '#14532d', border: '#22c55e', highlight: '#4ade80' },     
+            visual: { background: '#713f12', border: '#eab308', highlight: '#fde047' }      
+        };
+
+        let pulseState = true;
+        setInterval(() => {
+            pulseState = !pulseState;
+            atualizarBrilhoMidias();
+        }, 600);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const container = document.getElementById('network-container');
+            const data = { nodes: nodesDataset, edges: edgesDataset };
+            
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 16,
+                    font: { color: '#ffffff', size: 12, face: 'sans-serif' },
+                    borderWidth: 2
+                },
+                edges: {
+                    smooth: { type: 'continuous' }
+                },
+                physics: {
+                    barnesHut: { 
+                        gravitationalConstant: -4000, 
+                        centralGravity: 0.15, 
+                        springConstant: 0.06,
+                        springLength: 160 
+                    },
+                    stabilization: { iterations: 100 }
+                },
+                interaction: { hover: true }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            network.on("click", (params) => {
+                if (params.nodes.length > 0) {
+                    carregarNotaNaSidebar(params.nodes[0]);
+                }
+            });
+
+            document.getElementById('note-image').addEventListener('change', converterImagemParaBase64);
+            document.getElementById('note-sound').addEventListener('change', converterSomParaBase64);
+        });
+
+        function converterImagemParaBase64(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                base64ImagemTemporaria = event.target.result;
+                exibirPreviewImagem(base64ImagemTemporaria);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function converterSomParaBase64(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                base64SomTemporario = event.target.result;
+                exibirPreviewSom(base64SomTemporario);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function exibirPreviewImagem(src) {
+            const container = document.getElementById('image-preview-container');
+            const img = document.getElementById('image-preview');
+            img.src = src;
+            container.classList.remove('hidden');
+        }
+
+        function exibirPreviewSom(src) {
+            const container = document.getElementById('sound-preview-container');
+            const audio = document.getElementById('sound-preview');
+            audio.src = src;
+            container.classList.remove('hidden');
+        }
+
+        function removerMidia(tipo) {
+            if (tipo === 'image') {
+                base64ImagemTemporaria = null;
+                document.getElementById('note-image').value = '';
+                document.getElementById('image-preview-container').classList.add('hidden');
+            } else if (tipo === 'sound') {
+                base64SomTemporario = null;
+                document.getElementById('note-sound').value = '';
+                document.getElementById('sound-preview-container').classList.add('hidden');
+                document.getElementById('sound-preview').src = '';
+            }
+        }
+
+        function salvarNota() {
+            const title = document.getElementById('note-title').value.trim();
+            const type = document.getElementById('note-type').value;
+            const content = document.getElementById('note-content').value;
+
+            if (!title) {
+                alert("Por favor, dê um título à nota.");
+                return;
+            }
+
+            const id = title.toLowerCase().replace(/\s+/g, '-');
+
+            notas[id] = {
+                id: id,
+                title: title,
+                type: type,
+                content: content,
+                imageData: base64ImagemTemporaria,
+                audioData: base64SomTemporario
+            };
+
+            reconstruirGrafo();
+            limparFormulario();
+        }
+
+        function reconstruirGrafo() {
+            nodesDataset.clear();
+            edgesDataset.clear();
+
+            // 1. Plotar Nós
+            Object.values(notas).forEach(nota => {
+                const cor = coresCategoria[nota.type];
+                const possuiMidia = (nota.imageData || nota.audioData);
+                
+                nodesDataset.add({
+                    id: nota.id,
+                    label: nota.title,
+                    color: { background: cor.background, border: cor.border, highlight: cor.highlight },
+                    chosen: true,
+                    size: possuiMidia ? 24 : 16
+                });
+            });
+
+            const conexoesExistentes = new Set();
+            const listaNotas = Object.values(notas);
+            
+            // 2. Mapear Linhas Principais (Explicitas via [[Link]]) -> Vermelhas e Puxam Forte
+            for (let i = 0; i < listaNotas.length; i++) {
+                const notaA = listaNotas[i];
+                const regexLink = /\[\[(.*?)\]\]/g;
+                let match;
+                
+                while ((match = regexLink.exec(notaA.content)) !== null) {
+                    const tituloAlvo = match[1].trim();
+                    const idAlvo = tituloAlvo.toLowerCase().replace(/\s+/g, '-');
+                    
+                    if (notas[idAlvo] && idAlvo !== notaA.id) {
+                        const edgeKey = `exp-${notaA.id}-${idAlvo}`;
+                        const reverseKey = `exp-${idAlvo}-${notaA.id}`;
+                        
+                        if (!conexoesExistentes.has(edgeKey) && !conexoesExistentes.has(reverseKey)) {
+                            edgesDataset.add({
+                                from: notaA.id,
+                                to: idAlvo,
+                                width: 6.0, 
+                                length: 45, // Distância bem curta fixa = atração magnética forte
+                                color: { color: '#ef4444', highlight: '#ef4444' }, 
+                                physics: true
+                            });
+                            conexoesExistentes.add(edgeKey);
+                        }
+                    }
+                }
+            }
+
+            // 3. Mapear Linhas Secundárias (Palavras em comum) -> Brancas Opacas com Força Dinâmica
+            for (let i = 0; i < listaNotas.length; i++) {
+                const notaA = listaNotas[i];
+                
+                for (let j = i + 1; j < listaNotas.length; j++) {
+                    const notaB = listaNotas[j];
+                    const palavrasIguais = contarPalavrasEmComum(notaA.content, notaB.content);
+                    
+                    if (palavrasIguais > 0) {
+                        const edgeKey = `opc-${notaA.id}-${notaB.id}`;
+                        const reverseKey = `opc-${notaB.id}-${notaA.id}`;
+                        
+                        // Garante que o link secundário não substitua ou quebre o link principal manual
+                        if (!conexoesExistentes.has(`exp-${notaA.id}-${notaB.id}`) && 
+                            !conexoesExistentes.has(`exp-${notaB.id}-${notaA.id}`) &&
+                            !conexoesExistentes.has(edgeKey) && !conexoesExistentes.has(reverseKey)) {
+                            
+                            const opacidade = Math.min(0.08 + (palavrasIguais * 0.06), 0.45); 
+                            const largura = Math.min(1 + (palavrasIguais * 0.5), 3.5);
+                            
+                            // Força dinâmica: Quanto MAIS palavras iguais, MENOR o comprimento (length), aproximando os nós secundários drasticamente
+                            const comprimentoMola = Math.max(35, 300 - (palavrasIguais * 35));
+
+                            edgesDataset.add({
+                                from: notaA.id,
+                                to: notaB.id,
+                                width: largura,
+                                length: comprimentoMola, 
+                                color: { color: `rgba(255, 255, 255, ${opacidade})`, highlight: 'rgba(255,255,255,0.6)' },
+                                physics: true
+                            });
+                            conexoesExistentes.add(edgeKey);
+                        }
+                    }
+                }
+            }
+            atualizarBrilhoMidias();
+        }
+
+        function atualizarBrilhoMidias() {
+            Object.values(notas).forEach(nota => {
+                if (nota.imageData || nota.audioData) {
+                    const nodeInDataset = nodesDataset.get(nota.id);
+                    if (nodeInDataset) {
+                        const corBase = coresCategoria[nota.type];
+                        nodesDataset.update({
+                            id: nota.id,
+                            size: pulseState ? 26 : 18,
+                            color: {
+                                border: pulseState ? '#ffffff' : corBase.border,
+                                background: corBase.background
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        function contarPalavrasEmComum(t1, t2) {
+            if (!t1 || !t2) return 0;
+            const filtrar = (t) => t.toLowerCase().replace(/[\[\].,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(/\s+/).filter(p => p.length > 3);
+            const p1 = new Set(filtrar(t1));
+            const p2 = filtrar(t2);
+            let total = 0;
+            p2.forEach(p => { if (p1.has(p)) total++; });
+            return total;
+        }
+
+        function carregarNotaNaSidebar(id) {
+            const nota = notas[id];
+            if (!nota) return;
+
+            document.getElementById('note-title').value = nota.title;
+            document.getElementById('note-type').value = nota.type;
+            document.getElementById('note-content').value = nota.content;
+
+            base64ImagemTemporaria = nota.imageData || null;
+            base64SomTemporario = nota.audioData || null;
+
+            if (base64ImagemTemporaria) exibirPreviewImagem(base64ImagemTemporaria);
+            else document.getElementById('image-preview-container').classList.add('hidden');
+
+            if (base64SomTemporario) exibirPreviewSom(base64SomTemporario);
+            else {
+                document.getElementById('sound-preview-container').classList.add('hidden');
+                document.getElementById('sound-preview').src = '';
+            }
+        }
+
+        function limparFormulario() {
+            document.getElementById('note-title').value = '';
+            document.getElementById('note-content').value = '';
+            document.getElementById('note-image').value = '';
+            document.getElementById('note-sound').value = '';
+            base64ImagemTemporaria = null;
+            base64SomTemporario = null;
+            document.getElementById('image-preview-container').classList.add('hidden');
+            document.getElementById('sound-preview-container').classList.add('hidden');
+            document.getElementById('sound-preview').src = '';
+        }
+
+        function exportarCerebro() {
+            if (Object.keys(notas).length === 0) {
+                alert("Seu cérebro está vazio. Adicione notas primeiro!");
+                return;
+            }
+            const blob = new Blob([JSON.stringify(notas, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `meu_segundo_cerebro_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importarCerebro(event) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importado = JSON.parse(e.target.result);
+                    if (importado && typeof importado === 'object') {
+                        notas = importado;
+                        reconstruirGrafo();
+                        limparFormulario();
+                        alert("🧠 Banco de dados e mídias carregados com sucesso!");
+                    }
+                } catch (err) {
+                    alert("Erro crítico: O arquivo selecionado não é um backup válido.");
+                }
+            };
+            reader.readAsText(event.target.files[0]);
+        }
+    </script>
+</body>
+</html>

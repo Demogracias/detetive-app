@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agência Sombra - Compartimento de Carga</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --panel-bg: #121216;
+            --text-muted: #7d7d85;
+            --text-light: #e2e2e6;
+            --accent-blue: #4f5b66;
+            --accent-lock: #a03333;
+            --accent-open: #33a055;
+            --border-color: #2a2a32;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 30% 20%, rgba(20, 20, 25, 0.8) 0%, rgba(0, 0, 0, 0.95) 100%),
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
+            background-size: 100% 100%, 100% 4px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            max-width: 600px;
+            border-bottom: 1px double var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.6em;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            color: #ffffff;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 8px rgba(255,255,255,0.1);
+        }
+
+        .subtitle {
+            font-size: 0.85em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7), inset 0 0 10px rgba(255,255,255,0.02);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .panel::after {
+            content: "CLASSIFICADO";
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            font-size: 0.65em;
+            color: #222228;
+            letter-spacing: 3px;
+            font-weight: bold;
+        }
+
+        h2 {
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #222228;
+        }
+
+        .panel-seal h2 { color: #cc7a7a; border-left: 3px solid var(--accent-lock); padding-left: 8px; }
+        .panel-extract h2 { color: #7acc95; border-left: 3px solid var(--accent-open); padding-left: 8px; }
+
+        .field-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #050507;
+            border: 1px dashed var(--border-color);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.85em;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        input[type="file"]:hover {
+            border-color: var(--text-muted);
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #050507;
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            font-family: var(--font-mono);
+            font-size: 1em;
+            box-sizing: border-box;
+            letter-spacing: 4px;
+        }
+
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #555560;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+            margin-top: auto;
+        }
+
+        .btn-seal {
+            background-color: transparent;
+            color: #ff8888;
+            border-color: var(--accent-lock);
+        }
+
+        .btn-seal:hover:not(:disabled) {
+            background-color: var(--accent-lock);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(160, 51, 51, 0.4);
+        }
+
+        .btn-extract {
+            background-color: transparent;
+            color: #88ff88;
+            border-color: var(--accent-open);
+        }
+
+        .btn-extract:hover:not(:disabled) {
+            background-color: var(--accent-open);
+            color: #000000;
+            box-shadow: 0 0 10px rgba(51, 160, 85, 0.4);
+        }
+
+        button:disabled {
+            color: #3a3a42;
+            border-color: #222228;
+            cursor: not-allowed;
+        }
+
+        .console-log {
+            background-color: #050507;
+            border: 1px solid #1a1a22;
+            padding: 12px;
+            font-size: 0.75em;
+            min-height: 40px;
+            max-height: 80px;
+            overflow-y: auto;
+            color: #8a8a95;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+
+        .success-text { color: #55cc77 !md; }
+        .error-text { color: #cc5555; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Operação Compartimento Estanque</h1>
+        <div class="subtitle">Módulo de Compactação e Criptografia de Arquivos // Nível 4</div>
+    </div>
+
+    <div class="main-container">
+        
+        <div class="panel panel-seal">
+            <h2>I. Selar Dossiê (Arquivar)</h2>
+            
+            <div class="field-group">
+                <label>1. Selecionar Arquivo Sensível</label>
+                <input type="file" id="seal-file">
+            </div>
+            
+            <div class="field-group">
+                <label>2. Definir Palavra-Passe</label>
+                <input type="password" id="seal-password" placeholder="••••••••">
+            </div>
+            
+            <button class="btn-seal" id="btn-seal" onclick="executeSeal()">Compactar e Criptografar</button>
+            
+            <div class="console-log" id="log-seal">> Terminal pronto para codificação.</div>
+        </div>
+
+        <div class="panel panel-extract">
+            <h2>II. Abrir Dossiê (Extrair)</h2>
+            
+            <div class="field-group">
+                <label>1. Interceptar Arquivo (.dossie)</label>
+                <input type="file" id="extract-file" accept=".dossie">
+            </div>
+            
+            <div class="field-group">
+                <label>2. Inserir Palavra-Passe</label>
+                <input type="password" id="extract-password" placeholder="••••••••">
+            </div>
+            
+            <button class="btn-extract" id="btn-extract" onclick="executeExtract()">Decodificar e Descompactar</button>
+            
+            <div class="console-log" id="log-extract">> Terminal pronto para descriptografia.</div>
+        </div>
+
+    </div>
+
+    <script>
+        // Função auxiliar para atualizar as notificações do painel
+        function printLog(elementId, text, type = '') {
+            const el = document.getElementById(elementId);
+            const time = new Date().toTimeString().split(' ')[0];
+            let classAttr = type === 'success' ? 'class="success-text"' : (type === 'error' ? 'class="error-text"' : '');
+            el.innerHTML = `<span ${classAttr}>[${time}] ${text}</span>`;
+        }
+
+        // --- PROTOCOLO I: COMPRIMIR E SELAR ---
+        async function executeSeal() {
+            const fileInput = document.getElementById('seal-file');
+            const passwordInput = document.getElementById('seal-password').value;
+            const logId = 'log-seal';
+
+            if (!fileInput.files[0]) {
+                printLog(logId, "Erro: Nenhum arquivo foi selecionado para o selo.", "error");
+                return;
+            }
+            if (!passwordInput) {
+                printLog(logId, "Erro: A palavra-passe é obrigatória para blindagem.", "error");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            printLog(logId, "Iniciando compressão de dados (GZIP)...");
+            document.getElementById('btn-seal').disabled = true;
+
+            try {
+                // 1. Compactação Nativa usando Streams
+                const originalStream = new Blob([await file.arrayBuffer()]).stream();
+                const compressionStream = new CompressionStream('gzip');
+                const compressedStream = originalStream.pipeThrough(compressionStream);
+                const compressedBuffer = await new Response(compressedStream).arrayBuffer();
+
+                printLog(logId, "Derivando chave criptográfica de segurança...");
+
+                // 2. Derivação de Chave Robusta (PBKDF2) contra ataques de força bruta
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const passwordBytes = new TextEncoder().encode(passwordInput);
+                const baseKey = await window.crypto.subtle.importKey(
+                    "raw", passwordBytes, "PBKDF2", false, ["deriveKey"]
+                );
+                const cryptoKey = await window.crypto.subtle.deriveKey(
+                    { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+                    baseKey,
+                    { name: "AES-GCM", length: 256 },
+                    false,
+                    ["encrypt"]
+                );
+
+                printLog(logId, "Criptografando com algoritmo AES-GCM-256...");
+
+                // 3. Criptografia Simétrica Militar AES-GCM
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const ciphertextBuffer = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv },
+                    cryptoKey,
+                    compressedBuffer
+                );
+
+                printLog(logId, "Empacotando estrutura do dossiê...");
+
+                // 4. Estruturação do arquivo contêiner tático:
+                // [4 bytes: tamanho do nome] [N bytes: string do nome] [16 bytes: salt] [12 bytes: iv] [Resto: dados criptografados]
+                const nameBytes = new TextEncoder().encode(file.name);
+                const metadataHeader = new ArrayBuffer(4 + nameBytes.length + 16 + 12);
+                const view = new DataView(metadataHeader);
+                
+                view.setUint32(0, nameBytes.length, false); // Big Endian length
+                const uint8Header = new Uint8Array(metadataHeader);
+                uint8Header.set(nameBytes, 4);
+                uint8Header.set(salt, 4 + nameBytes.length);
+                uint8Header.set(iv, 4 + nameBytes.length + 16);
+
+                const finalPackageBlob = new Blob([uint8Header, ciphertextBuffer], { type: "application/octet-stream" });
+                
+                // Trigger do Download do Arquivo .dossie
+                const downloadUrl = URL.createObjectURL(finalPackageBlob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = file.name + ".dossie";
+                a.click();
+                
+                printLog(logId, "Sucesso. Carga selada e extraída como arquivo .dossie", "success");
+            } catch (err) {
+                printLog(logId, `Falha crítica: ${err.message}`, "error");
+                console.error(err);
+            } finally {
+                document.getElementById('btn-seal').disabled = false;
+            }
+        }
+
+        // --- PROTOCOLO II: DESCRIPTOGRAFAR E EXTRAIR ---
+        async function executeExtract() {
+            const fileInput = document.getElementById('extract-file');
+            const passwordInput = document.getElementById('extract-password').value;
+            const logId = 'log-extract';
+
+            if (!fileInput.files[0]) {
+                printLog(logId, "Erro: Nenhum artefato .dossie foi fornecido.", "error");
+                return;
+            }
+            if (!passwordInput) {
+                printLog(logId, "Erro: Palavra-passe ausente. Acesso negado.", "error");
+                return;
+            }
+
+            printLog(logId, "Analisando cabeçalho estrutural do contêiner...");
+            document.getElementById('btn-extract').disabled = true;
+
+            try {
+                const fullBuffer = await fileInput.files[0].arrayBuffer();
+                const view = new DataView(fullBuffer);
+                
+                // 1. Desempacotar Metadados
+                const nameLen = view.getUint32(0, false);
+                const fullUint8 = new Uint8Array(fullBuffer);
+                
+                const nameBytes = fullUint8.slice(4, 4 + nameLen);
+                const originalFileName = new TextDecoder().decode(nameBytes);
+                
+                const saltOffset = 4 + nameLen;
+                const salt = fullUint8.slice(saltOffset, saltOffset + 16);
+                
+                const ivOffset = saltOffset + 16;
+                const iv = fullUint8.slice(ivOffset, ivOffset + 12);
+                
+                const ciphertextOffset = ivOffset + 12;
+                const ciphertext = fullUint8.slice(ciphertextOffset);
+
+                printLog(logId, "Tentando reverter chave com a palavra-passe inserida...");
+
+                // 2. Recriar a chave criptográfica baseada no Salt extraído do arquivo
+                const passwordBytes = new TextEncoder().encode(passwordInput);
+                const baseKey = await window.crypto.subtle.importKey(
+                    "raw", passwordBytes, "PBKDF2", false, ["deriveKey"]
+                );
+                const cryptoKey = await window.crypto.subtle.deriveKey(
+                    { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+                    baseKey,
+                    { name: "AES-GCM", length: 256 },
+                    false,
+                    ["decrypt"]
+                );
+
+                printLog(logId, "Descriptografando bloco de dados (AES-GCM)...");
+
+                // 3. Descriptografia real. Se a senha estiver incorreta, falhará aqui (integridade violada)
+                const decryptedCompressedBuffer = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    cryptoKey,
+                    ciphertext
+                );
+
+                printLog(logId, "Chave válida. Descompactando arquivo original...");
+
+                // 4. Descompactação Nativa via Streams (GZIP)
+                const compressedBlobStream = new Blob([decryptedCompressedBuffer]).stream();
+                const decompressionStream = new DecompressionStream('gzip');
+                const decompressedStream = compressedBlobStream.pipeThrough(decompressionStream);
+                const originalFileBlob = await new Response(decompressedStream).blob();
+
+                // Trigger do Download do Arquivo Original Restaurado
+                const downloadUrl = URL.createObjectURL(originalFileBlob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = originalFileName;
+                a.click();
+
+                printLog(logId, `Sucesso. Arquivo [${originalFileName}] recuperado intacto.`, "success");
+            } catch (err) {
+                // Erros de decodificação do AES-GCM geralmente significam chave incorreta
+                if (err.name === "OperationError") {
+                    printLog(logId, "Acesso Negado: Palavra-passe incorreta ou integridade violada.", "error");
+                } else {
+                    printLog(logId, `Falha na extração: ${err.message}`, "error");
+                }
+                console.error(err);
+            } finally {
+                document.getElementById('btn-extract').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

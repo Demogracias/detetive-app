@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEMA DE INTELIGÊNCIA - DECODIFICADOR BASE64</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --text-color: #dcdcdc;
+            --accent-color: #555;
+            --error-color: #8b0000;
+            --border-style: 1px solid #333;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .terminal {
+            width: 100%;
+            max-width: 800px;
+            background-color: #111;
+            padding: 30px;
+            border: var(--border-style);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5em;
+            letter-spacing: 2px;
+            border-bottom: var(--border-style);
+            padding-bottom: 10px;
+            margin-top: 0;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        p.subtitle {
+            text-align: center;
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            background-color: #000;
+            color: var(--text-color);
+            border: var(--border-style);
+            padding: 10px;
+            font-family: inherit;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #777;
+        }
+
+        select, button {
+            background-color: #222;
+            color: var(--text-color);
+            border: var(--border-style);
+            padding: 10px;
+            font-family: inherit;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        select {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        button {
+            width: 100%;
+            font-weight: bold;
+            letter-spacing: 1px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #333;
+        }
+
+        button:active {
+            background-color: #000;
+        }
+
+        #output-container {
+            margin-top: 30px;
+            padding: 20px;
+            min-height: 100px;
+            background-color: #050505;
+            border: var(--border-style);
+            word-wrap: break-word;
+        }
+
+        .system-msg {
+            color: #888;
+            font-style: italic;
+        }
+
+        .error-msg {
+            color: var(--error-color);
+            font-weight: bold;
+        }
+
+        .evidence-title {
+            border-bottom: 1px dashed #333;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        /* Elements inside output */
+        pre {
+            white-space: pre-wrap;
+            margin: 0;
+            color: #bbb;
+        }
+
+        img {
+            max-width: 100%;
+            border: 2px solid #222;
+            filter: grayscale(20%); /* Slight noir effect on images */
+        }
+
+        audio {
+            width: 100%;
+            filter: invert(90%); /* Makes the audio player dark mode in most browsers */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="terminal">
+        <h1>DEPARTAMENTO DE CRIPTOGRAFIA</h1>
+        <p class="subtitle">Agência Central - Nível de Acesso: CONFIDENCIAL</p>
+
+        <div class="control-group">
+            <label for="base64-input">>> Inserir código interceptado (Base64):</label>
+            <textarea id="base64-input" placeholder="Cole os dados brutos aqui..."></textarea>
+        </div>
+
+        <div class="control-group">
+            <label for="data-type">>> Natureza da evidência:</label>
+            <select id="data-type">
+                <option value="text">Documento de Texto (TXT)</option>
+                <option value="image">Evidência Fotográfica (JPG/PNG)</option>
+                <option value="audio">Interceptação de Áudio (MP3/WAV)</option>
+            </select>
+        </div>
+
+        <button onclick="decodeEvidence()">>> PROCESSAR EVIDÊNCIA <<</button>
+
+        <div id="output-container">
+            <span class="system-msg">Aguardando inserção de dados...</span>
+        </div>
+    </div>
+
+    <script>
+        function decodeEvidence() {
+            const inputField = document.getElementById('base64-input');
+            const dataType = document.getElementById('data-type').value;
+            const outputContainer = document.getElementById('output-container');
+            
+            let rawInput = inputField.value.trim();
+
+            // Limpa o terminal
+            outputContainer.innerHTML = '';
+
+            if (!rawInput) {
+                outputContainer.innerHTML = '<span class="error-msg">[ERRO] NENHUM CÓDIGO DETECTADO NO BUFFER.</span>';
+                return;
+            }
+
+            try {
+                // Verifica se o usuário já colou com o prefixo 'data:'
+                const hasPrefix = rawInput.startsWith('data:');
+                
+                if (dataType === 'text') {
+                    // Para texto, removemos o prefixo se existir para usar o atob
+                    let base64String = rawInput;
+                    if (hasPrefix) {
+                        base64String = rawInput.split(',')[1];
+                    }
+                    
+                    // Decodifica lidando com caracteres especiais/acentos corretamente
+                    const decodedText = decodeURIComponent(escape(atob(base64String)));
+                    
+                    outputContainer.innerHTML = `
+                        <div class="evidence-title">[ARQUIVO CONFIDENCIAL RECUPERADO]</div>
+                        <pre>${decodedText}</pre>
+                    `;
+                    
+                } else if (dataType === 'image') {
+                    // Para imagem, precisamos do prefixo
+                    let imgSrc = hasPrefix ? rawInput : `data:image/jpeg;base64,${rawInput}`;
+                    
+                    outputContainer.innerHTML = `
+                        <div class="evidence-title">[REGISTRO FOTOGRÁFICO EXTRAÍDO]</div>
+                        <img src="${imgSrc}" alt="Evidência Fotográfica" onerror="handleError()">
+                    `;
+                    
+                } else if (dataType === 'audio') {
+                    // Para áudio, precisamos do prefixo
+                    let audioSrc = hasPrefix ? rawInput : `data:audio/mp3;base64,${rawInput}`;
+                    
+                    outputContainer.innerHTML = `
+                        <div class="evidence-title">[GRAVAÇÃO CLANDESTINA RECUPERADA]</div>
+                        <audio controls src="${audioSrc}" onerror="handleError()"></audio>
+                    `;
+                }
+            } catch (error) {
+                handleError();
+            }
+        }
+
+        function handleError() {
+            const outputContainer = document.getElementById('output-container');
+            outputContainer.innerHTML = '<span class="error-msg">[FALHA CRÍTICA] CÓDIGO CORROMPIDO. A DESCRIPTOGRAFIA FALHOU. VERIFIQUE A INTEGRIDADE DOS DADOS.</span>';
+        }
+    </script>
+</body>
+</html>

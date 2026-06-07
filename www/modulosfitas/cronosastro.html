@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo Chronos-Astro // Processador Fotônico</title>
+    <style>
+        :root {
+            --bg-deep: #050608;
+            --panel-bg: #0b0d12;
+            --tactical-blue: #4d82cb;
+            --tactical-glow: rgba(77, 130, 203, 0.3);
+            --text-light: #d1d5db;
+            --text-muted: #4b5563;
+            --border: #1e293b;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-light);
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            width: 100%;
+            max-width: 1100px;
+            border-bottom: 1px double var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            font-size: 1.3em;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: #ffffff;
+            margin: 0;
+            text-shadow: 0 0 8px var(--tactical-blue);
+        }
+
+        .workspace {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        h2 {
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+            color: var(--tactical-blue);
+            border-left: 3px solid var(--tactical-blue);
+            padding-left: 8px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            color: #9ca3af;
+        }
+
+        select, input[type="file"] {
+            width: 100%;
+            background-color: #000;
+            border: 1px solid var(--border);
+            color: var(--tactical-blue);
+            padding: 10px;
+            font-family: var(--font-mono);
+            box-sizing: border-box;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: #111827;
+            height: 6px;
+            border: 1px solid var(--border);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            background: var(--tactical-blue);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            box-shadow: 0 0 5px var(--tactical-blue);
+        }
+
+        .viewer-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #020203;
+            border: 1px solid var(--border);
+            padding: 15px;
+            min-height: 400px;
+            position: relative;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 70vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background-image: radial-gradient(#111 1px, transparent 1px);
+            background-size: 16px 16px;
+        }
+
+        .terminal {
+            grid-column: 1 / -1;
+            background-color: #000;
+            border: 1px solid #111827;
+            padding: 10px;
+            height: 100px;
+            overflow-y: auto;
+            font-size: 0.75em;
+            color: #6b7280;
+        }
+        .terminal p { margin: 3px 0; }
+        .text-active { color: var(--tactical-blue); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Módulo Chronos-Astro // Filtragem de Sinais Espaciais</h1>
+    </div>
+
+    <div class="workspace">
+        
+        <div class="panel">
+            <h2>I. Aquisição & Perfil</h2>
+            
+            <div class="control-group">
+                <label>Carregar Registro Bruto (RAW/JPG)</label>
+                <input type="file" id="astro-file" accept="image/*" onchange="loadImage(event)">
+            </div>
+
+            <div class="control-group">
+                <label>Alvo de Otimização</label>
+                <select id="target-profile" onchange="applyFilters()">
+                    <option value="planets">Planetas e a Lua (Foco em Nitidez/Crateras)</option>
+                    <option value="deepsky">Estrelas e Nebulosas (Foco em Gases/Contraste)</option>
+                </select>
+            </div>
+
+            <h2>II. Deconvolução Wavelet & Histograma</h2>
+
+            <div class="control-group">
+                <label>Wavelet Camada 1: Detalhes Finos</label>
+                <input type="range" id="wavelet-fine" min="0" max="100" value="0" oninput="applyFilters()">
+            </div>
+
+            <div class="control-group">
+                <label>Wavelet Camada 2: Estruturas Médias</label>
+                <input type="range" id="wavelet-medium" min="0" max="100" value="0" oninput="applyFilters()">
+            </div>
+
+            <div class="control-group">
+                <label>Supressão de Ruído Escuro (Black Point)</label>
+                <input type="range" id="black-point" min="0" max="100" value="0" oninput="applyFilters()">
+            </div>
+
+            <div class="control-group">
+                <label>Saturação Cromática (Nebula Pop)</label>
+                <input type="range" id="saturation" min="0" max="200" value="100" oninput="applyFilters()">
+            </div>
+        </div>
+
+        <div class="viewer-panel">
+            <h2>II. Matriz de Exibição Fotônica</h2>
+            <div style="margin-top: 15px; width: 100%; display: flex; justify-content: center;">
+                <canvas id="astroCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="terminal" id="term-log">
+            <p>> Sistema online. Sensores CCD/CMOS prontos para acoplamento óptico.</p>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('astroCanvas');
+        const ctx = canvas.getContext('2d');
+        let originalImageData = null;
+        let originalImage = null;
+
+        function printLog(msg, active = false) {
+            const term = document.getElementById('term-log');
+            const p = document.createElement('p');
+            if (active) p.className = 'text-active';
+            p.innerText = `[${new Date().toTimeString().split(' ')[0]}] > ${msg}`;
+            term.appendChild(p);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function loadImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                originalImage = new Image();
+                originalImage.onload = function() {
+                    // Redimensiona o canvas para caber na tela sem perder proporção se for gigantesco
+                    let maxDim = 1000;
+                    let w = originalImage.width;
+                    let h = originalImage.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = (maxDim / w) * h; w = maxDim; }
+                        else { w = (maxDim / h) * w; h = maxDim; }
+                    }
+                    
+                    canvas.width = w;
+                    canvas.height = h;
+                    ctx.drawImage(originalImage, 0, 0, w, h);
+                    
+                    // Guarda o cache de pixels originais intactos para processamento iterativo
+                    originalImageData = ctx.getImageData(0, 0, w, h);
+                    printLog(`Captura assimilada: ${w}x${h} pixels de resolução.`, true);
+                    
+                    // Reseta os Sliders
+                    document.getElementById('wavelet-fine').value = 0;
+                    document.getElementById('wavelet-medium').value = 0;
+                    document.getElementById('black-point').value = 0;
+                    document.getElementById('saturation').value = 100;
+                    
+                    applyFilters();
+                };
+                originalImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyFilters() {
+            if (!originalImageData) return;
+
+            // Cria uma cópia limpa a partir dos pixels originais gravados em cache
+            const workingImageData = new ImageData(
+                new Uint8ClampedArray(originalImageData.data),
+                originalImageData.width,
+                originalImageData.height
+            );
+
+            const profile = document.getElementById('target-profile').value;
+            const fine = parseFloat(document.getElementById('wavelet-fine').value) / 100;
+            const medium = parseFloat(document.getElementById('wavelet-medium').value) / 100;
+            const blackPoint = parseFloat(document.getElementById('black-point').value);
+            const sat = parseFloat(document.getElementById('saturation').value) / 100;
+
+            let data = workingImageData.data;
+            const w = workingImageData.width;
+            const h = workingImageData.height;
+
+            // 1. Processamento de Histograma Base (Corte de Ponto Negro e Saturação)
+            // Essencial tanto para limpar o fundo do céu quanto para avivar nebulosas (DSS/Siril Style)
+            for (let i = 0; i < data.length; i += 4) {
+                let r = data[i];
+                let g = data[i+1];
+                let b = data[i+2];
+
+                // Supressão de Ponto Negro (Limpa o ruído térmico de fundo do espaço)
+                r = Math.max(0, r - blackPoint) * (255 / (255 - blackPoint));
+                g = Math.max(0, g - blackPoint) * (255 / (255 - blackPoint));
+                b = Math.max(0, b - blackPoint) * (255 / (255 - blackPoint));
+
+                // Ajuste de Saturação via Luma (Revela cores ocultas de gases ionizados)
+                let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+                r = luma + (r - luma) * sat;
+                g = luma + (g - luma) * sat;
+                b = luma + (b - luma) * sat;
+
+                data[i] = Math.min(255, Math.max(0, r));
+                data[i+1] = Math.min(255, Math.max(0, g));
+                data[i+2] = Math.min(255, Math.max(0, b));
+            }
+
+            // 2. Simulação de Deconvolução Wavelet (Filtro de Kernel Convolucional Dinâmico)
+            // RegiStax / WaveSharp Style
+            if (fine > 0 || medium > 0) {
+                const bufferData = new Uint8ClampedArray(data);
+                
+                // Matrizes de convolução (Kernels)
+                // Camada Fina: Realça bordas de alta frequência (Filtro Laplaciano cirúrgico)
+                const kFine = [
+                     0, -1,  0,
+                    -1,  5, -1,
+                     0, -1,  0
+                ];
+
+                // Camada Média: Realça estruturas maiores (Filtro Box expandido estrutural)
+                const kMedium = [
+                    -1, -1, -1,
+                    -1,  9, -1,
+                    -1, -1, -1
+                ];
+
+                // Varre a malha bidimensional de pixels (ignorando bordas externas para segurança de índice)
+                for (let y = 1; y < h - 1; y++) {
+                    for (let x = 1; x < w - 1; x++) {
+                        let rF = 0, gF = 0, bF = 0;
+                        let rM = 0, gM = 0, bM = 0;
+
+                        // Loop da submatriz 3x3 adjacente
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const pIdx = ((y + ky) * w + (x + kx)) * 4;
+                                const kIdx = (ky + 1) * 3 + (kx + 1);
+
+                                // Acumula frequências finas
+                                rF += bufferData[pIdx] * kFine[kIdx];
+                                gF += bufferData[pIdx+1] * kFine[kIdx];
+                                bF += bufferData[pIdx+2] * kFine[kIdx];
+
+                                // Acumula frequências médias
+                                rM += bufferData[pIdx] * kMedium[kIdx];
+                                gM += bufferData[pIdx+1] * kMedium[kIdx];
+                                bM += bufferData[pIdx+2] * kMedium[kIdx];
+                            }
+                        }
+
+                        const idx = (y * w + x) * 4;
+
+                        // Mescla o pixel processado baseado no peso (Ganho) dos Sliders de Wavelet
+                        if (fine > 0) {
+                            data[idx]   = data[idx]   * (1 - fine) + Math.min(255, Math.max(0, rF)) * fine;
+                            data[idx+1] = data[idx+1] * (1 - fine) + Math.min(255, Math.max(0, gF)) * fine;
+                            data[idx+2] = data[idx+2] * (1 - fine) + Math.min(255, Math.max(0, bF)) * fine;
+                        }
+
+                        if (medium > 0) {
+                            data[idx]   = data[idx]   * (1 - medium) + Math.min(255, Math.max(0, rM)) * medium;
+                            data[idx+1] = data[idx+1] * (1 - medium) + Math.min(255, Math.max(0, gM)) * medium;
+                            data[idx+2] = data[idx+2] * (1 - medium) + Math.min(255, Math.max(0, bM)) * medium;
+                        }
+                    }
+                }
+            }
+
+            // Cospe os pixels lapidados de volta na tela de radar
+            ctx.putImageData(workingImageData, 0, 0);
+            printLog(`Filtros de espectro aplicados. Perfil ativo: [${profile.toUpperCase()}].`);
+        }
+    </script>
+</body>
+</html>

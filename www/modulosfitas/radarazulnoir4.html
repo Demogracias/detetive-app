@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>AGÊNCIA SOMBRA: BLE RADAR V4 — KALMAN/PARTICLE · FINGERPRINT · TRILATERAÇÃO</title>
+<style>
+:root {
+  --bg:#050805; --term:#00ff66; --term-dim:#005511;
+  --alert:#ff3333; --focus:#ffaa00; --blue:#3388ff;
+  --purple:#aa44ff; --cyan:#00dddd;
+  --font:'Courier New',Courier,monospace;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:var(--bg); color:var(--term);
+  font-family:var(--font); overflow:hidden; height:100vh;
+  display:flex; flex-direction:column;
+  background-image:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.25) 50%),
+    linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06));
+  background-size:100% 4px,6px 100%;
+}
+header {
+  border-bottom:2px solid var(--term); padding:10px 15px;
+  display:flex; justify-content:space-between; align-items:center;
+  background:rgba(0,20,0,0.5); z-index:10; flex-shrink:0;
+}
+h1 { font-size:1rem; letter-spacing:2px; text-shadow:0 0 10px var(--term); }
+.subtitle { font-size:0.6rem; color:var(--term-dim); margin-top:1px; }
+.status-badge {
+  border:1px solid var(--term); padding:4px 8px;
+  animation:pulse 2s infinite; text-align:center; font-size:0.7rem;
+}
+.status-badge.idle { border-color:#333; color:#555; animation:none; }
+.main-container { display:flex; flex:1; overflow:hidden; position:relative; }
+
+.sidebar {
+  width:360px; border-right:2px solid var(--term);
+  padding:12px; display:flex; flex-direction:column; gap:8px;
+  background:rgba(5,8,5,0.95);
+  transition:width 0.3s ease,padding 0.3s ease;
+  position:relative; z-index:5; flex-shrink:0;
+}
+.sidebar.collapsed { width:0; padding:12px 0; overflow:hidden; border-right:none; }
+.toggle-tab {
+  position:absolute; right:-30px; top:15px;
+  background:var(--bg); color:var(--term);
+  border:1px solid var(--term); border-left:none;
+  padding:8px; cursor:pointer; font-family:var(--font);
+  font-weight:bold; z-index:6; transition:all 0.3s;
+}
+.toggle-tab:hover { background:var(--term); color:var(--bg); }
+
+.radar-section {
+  flex:1; display:flex; justify-content:center; align-items:center;
+  position:relative;
+  background:radial-gradient(circle,rgba(0,40,10,0.3) 0%,rgba(5,8,5,1) 70%);
+}
+canvas#radarCanvas { max-width:90vmin; max-height:90vmin; cursor:crosshair; }
+
+.console-box {
+  height:110px; border-top:2px solid var(--term);
+  background:rgba(0,5,0,0.9); padding:8px;
+  font-size:0.75rem; overflow-y:auto; white-space:pre-wrap;
+  z-index:10; flex-shrink:0;
+}
+
+.btn {
+  background:transparent; color:var(--term);
+  border:1px solid var(--term);
+  padding:7px; cursor:pointer; font-family:var(--font);
+  font-weight:bold; letter-spacing:1px;
+  transition:all 0.3s; width:100%; font-size:0.7rem;
+}
+.btn:hover { background:var(--term); color:var(--bg); box-shadow:0 0 12px var(--term); }
+.btn.alert { border-color:var(--alert); color:var(--alert); }
+.btn.alert:hover { background:var(--alert); color:#000; }
+.btn.focus { border-color:var(--focus); color:var(--focus); }
+.btn.focus:hover { background:var(--focus); color:#000; }
+.btn.blue { border-color:var(--blue); color:var(--blue); }
+.btn.blue:hover { background:var(--blue); color:#000; }
+.btn.purple { border-color:var(--purple); color:var(--purple); }
+.btn.purple:hover { background:var(--purple); color:#000; }
+.btn.active { background:var(--term); color:var(--bg); }
+.btn:disabled { opacity:0.3; cursor:not-allowed; }
+.btn.small { padding:4px; font-size:0.6rem; }
+
+.intel-card {
+  border:1px dashed var(--term-dim); padding:8px; font-size:0.7rem; line-height:1.35;
+}
+.intel-card h3 { margin-bottom:4px; color:#fff; text-shadow:0 0 4px var(--term); font-size:0.75rem; }
+
+.tags-container { display:flex; flex-direction:column; gap:4px; margin-top:4px; max-height:140px; overflow-y:auto; }
+.spy-tag {
+  background:rgba(0,40,10,0.4); border:1px solid var(--term-dim);
+  color:var(--term); padding:5px 7px; font-size:0.65rem;
+  border-radius:3px; transition:all 0.2s ease; cursor:pointer;
+}
+.spy-tag:hover { border-color:var(--focus); }
+.spy-tag.selected { border-color:var(--focus)!important; background:rgba(40,30,0,0.5)!important; }
+.spy-tag.alert { border-color:var(--alert)!important; color:var(--alert)!important; background:rgba(40,5,5,0.7)!important; animation:pulse-border 0.4s infinite alternate; }
+
+.mode-selector { display:flex; gap:3px; flex-wrap:wrap; }
+.mode-btn {
+  flex:1; min-width:60px; padding:5px 4px;
+  background:transparent; color:var(--term-dim);
+  border:1px solid var(--term-dim); cursor:pointer;
+  font-family:var(--font); font-size:0.6rem; font-weight:bold;
+  transition:all 0.3s;
+}
+.mode-btn.active { color:var(--term); border-color:var(--term); background:rgba(0,40,10,0.3); }
+.mode-btn:hover { border-color:var(--term); }
+.mode-btn.purple.active { border-color:var(--purple); color:var(--purple); }
+.mode-btn.cyan.active { border-color:var(--cyan); color:var(--cyan); }
+
+.focus-stats {
+  border:1px solid var(--focus); background:rgba(40,30,0,0.15);
+  padding:6px; font-size:0.65rem; display:none;
+}
+.focus-stats.visible { display:block; }
+.stat-row { display:flex; justify-content:space-between; margin:1px 0; }
+.stat-value { color:var(--focus); font-weight:bold; }
+
+.fingerprint-panel {
+  border:1px solid var(--purple); background:rgba(30,0,40,0.15);
+  padding:6px; font-size:0.65rem; display:none;
+}
+.fingerprint-panel.visible { display:block; }
+.fp-stat { color:var(--purple); font-weight:bold; }
+
+.trilat-panel {
+  border:1px solid var(--cyan); background:rgba(0,30,40,0.15);
+  padding:6px; font-size:0.65rem; display:none;
+}
+.trilat-panel.visible { display:block; }
+.trilat-stat { color:var(--cyan); font-weight:bold; }
+
+.progress-bar { width:100%; height:3px; background:#0a1a0a; margin-top:3px; }
+.progress-fill { height:100%; background:var(--term); transition:width 0.3s; }
+
+@keyframes pulse { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:0.5} }
+@keyframes pulse-border { from{box-shadow:0 0 2px var(--alert)} to{box-shadow:0 0 10px var(--alert)} }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-thumb { background:var(--term); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>AGÊNCIA SOMBRA // BLE RADAR V4</h1>
+    <p class="subtitle">PARTICLE FILTER · FINGERPRINT · TRILATERAÇÃO · HEATMAP</p>
+  </div>
+  <div class="status-badge idle" id="status-text">[IDLE]</div>
+</header>
+
+<div class="main-container">
+  <div class="sidebar" id="sidebar">
+    <button class="toggle-tab" id="toggle-btn">«</button>
+
+    <!-- Modos -->
+    <div class="mode-selector">
+      <button class="mode-btn active" data-mode="general" onclick="setMode('general')">GERAL</button>
+      <button class="mode-btn" data-mode="focus" onclick="setMode('focus')">FOCO</button>
+      <button class="mode-btn purple" data-mode="fingerprint" onclick="setMode('fingerprint')">FINGERPRINT</button>
+      <button class="mode-btn cyan" data-mode="trilateration" onclick="setMode('trilateration')">TRILAT</button>
+    </div>
+
+    <!-- Botoes acao -->
+    <div style="display:flex;gap:4px;">
+      <button class="btn" id="scan-btn" style="flex:1;">INICIAR</button>
+      <button class="btn blue" id="scan-ble-btn" style="flex:1;">BLE REAL</button>
+    </div>
+
+    <!-- Painel Fingerprint -->
+    <div class="fingerprint-panel" id="fp-panel">
+      <h3 style="color:var(--purple);font-size:0.7rem;">FINGERPRINT</h3>
+      <div style="display:flex;gap:3px;margin-bottom:4px;">
+        <button class="btn small purple" onclick="fpCalibrate()" style="flex:1;">MARCAR PONTO</button>
+        <button class="btn small purple" onclick="fpClear()" style="flex:1;">LIMPAR</button>
+      </div>
+      <div class="stat-row"><span>Pontos:</span><span class="fp-stat" id="fp-count">0</span></div>
+      <div class="stat-row"><span>Precisão:</span><span class="fp-stat" id="fp-precision">—</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="fp-coverage" style="width:0%;background:var(--purple)"></div></div>
+    </div>
+
+    <!-- Painel Trilateracao -->
+    <div class="trilat-panel" id="trilat-panel">
+      <h3 style="color:var(--cyan);font-size:0.7rem;">TRILATERAÇÃO 3-RX</h3>
+      <div class="stat-row"><span>Posição X:</span><span class="trilat-stat" id="trilat-x">—</span></div>
+      <div class="stat-row"><span>Posição Y:</span><span class="trilat-stat" id="trilat-y">—</span></div>
+      <div class="stat-row"><span>Erro residual:</span><span class="trilat-stat" id="trilat-error">—</span></div>
+      <div class="stat-row"><span># Receptores:</span><span class="trilat-stat" id="trilat-rx">0/3</span></div>
+    </div>
+
+    <!-- Stats foco -->
+    <div class="focus-stats" id="focus-stats">
+      <h3 style="color:var(--focus);font-size:0.7rem;">MODO FOCO
+        <span style="float:right;font-size:0.55rem;color:var(--term-dim);font-weight:normal;" id="filter-type">KALMAN</span>
+      </h3>
+      <div class="stat-row"><span>Alvo:</span><span class="stat-value" id="focus-name">—</span></div>
+      <div class="stat-row"><span>Distância:</span><span class="stat-value" id="focus-dist">—</span></div>
+      <div class="stat-row"><span>Velocidade:</span><span class="stat-value" id="focus-speed">—</span></div>
+      <div class="stat-row"><span>Posição X/Y:</span><span class="stat-value" id="focus-xy">—</span></div>
+      <div class="stat-row"><span>RSSI filtrado:</span><span class="stat-value" id="focus-rssi">—</span></div>
+      <div class="stat-row"><span>Precisão:</span><span class="stat-value" id="focus-precision">—</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="focus-confidence" style="width:0%"></div></div>
+    </div>
+
+    <!-- Lista dispositivos -->
+    <div class="intel-card" style="flex:1;overflow-y:auto;">
+      <h3>DISPOSITIVOS <span style="font-size:0.55rem;color:var(--term-dim);font-weight:normal;">(clique=foco)</span></h3>
+      <div class="tags-container" id="tags-wrapper">
+        <div style="color:var(--term-dim);font-size:0.65rem;">Nenhum dispositivo.</div>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="intel-card" style="font-size:0.55rem;color:var(--term-dim);padding:5px;">
+      <span>[FILTRO: <span id="filter-display">KALMAN</span>]</span>
+      <span style="float:right;">[n: <span id="env-display">2.4</span>] [σ: <span id="sigma-display">—</span>]</span>
+    </div>
+  </div>
+
+  <div class="radar-section">
+    <canvas id="radarCanvas" width="600" height="600"></canvas>
+  </div>
+</div>
+
+<div class="console-box" id="terminal-console">
+[SISTEMA] AGÊNCIA SOMBRA V4 — PARTICLE FILTER + FINGERPRINT + TRILATERAÇÃO.
+[SISTEMA] Modos: GERAL (multi-alvo) | FOCO (precisão) | FINGERPRINT (mapa de sinal) | TRILAT (triangulação 3-RX).
+[SISTEMA] Clique no radar no modo FINGERPRINT para marcar pontos de calibração.
+</div>
+
+<script>
+// ================================================================
+// PARTICLE FILTER — Rao-Blackwellized SIR para localização NLOS
+// Base: "Particle Filter for BLE Indoor Localization" — IEEE Access 2021
+// ================================================================
+class ParticleFilter {
+  constructor(n = 800, spread = 12) {
+    this.n = n;
+    this.particles = [];
+    this.estimate = { x: 0, y: 0, confidence: 0 };
+    this.likelihoodSigma = 5;
+    for (let i = 0; i < n; i++) {
+      this.particles.push({
+        x: (Math.random() - 0.5) * spread,
+        y: (Math.random() - 0.5) * spread,
+        weight: 1 / n
+      });
+    }
+  }
+
+  // Modelo de path loss esperado para posição (x,y) dado um TX em (tx,txY)
+  expectedRssi(x, y, txX = 0, txY = 0, txPower = -59, n = 2.4) {
+    const dist = Math.sqrt((x - txX) ** 2 + (y - txY) ** 2);
+    if (dist < 0.01) return txPower;
+    return txPower - 10 * n * Math.log10(dist);
+  }
+
+  // Predição: movimento browniano com ruído adaptativo
+  predict(motionNoise = 0.15, driftX = 0, driftY = 0) {
+    for (let p of this.particles) {
+      p.x += driftX + (Math.random() - 0.5) * motionNoise;
+      p.y += driftY + (Math.random() - 0.5) * motionNoise;
+    }
+  }
+
+  // Atualização: pondera por verossimilhança gaussiana
+  update(rssiMeasured, txX = 0, txY = 0, txPower = -59, nVal = 2.4, sigma = null) {
+    if (sigma !== null) this.likelihoodSigma = sigma;
+    let totalW = 0;
+    for (let p of this.particles) {
+      const exp = this.expectedRssi(p.x, p.y, txX, txY, txPower, nVal);
+      const diff = rssiMeasured - exp;
+      p.weight = Math.exp(-(diff * diff) / (2 * this.likelihoodSigma * this.likelihoodSigma));
+      totalW += p.weight;
+    }
+    if (totalW < 1e-30) { // degeneracy — reseta
+      for (let p of this.particles) { p.weight = 1 / this.n; }
+      return;
+    }
+    for (let p of this.particles) p.weight /= totalW;
+  }
+
+  // Reamostragem sistemática (estratificada) — mais estável que multinomial
+  resample() {
+    const newP = [];
+    const cumW = [];
+    let cum = 0;
+    for (let p of this.particles) { cum += p.weight; cumW.push(cum); }
+
+    const step = 1 / this.n;
+    let r = Math.random() * step;
+    let idx = 0;
+    for (let i = 0; i < this.n; i++) {
+      while (r > cumW[idx] && idx < this.n - 1) idx++;
+      const base = this.particles[idx];
+      newP.push({
+        x: base.x + (Math.random() - 0.5) * 0.04,
+        y: base.y + (Math.random() - 0.5) * 0.04,
+        weight: 1 / this.n
+      });
+      r += step;
+    }
+    this.particles = newP;
+  }
+
+  // Estima posição (média ponderada) e confiança (inverso da variância)
+  computeEstimate() {
+    let wx = 0, wy = 0, total = 0;
+    for (let p of this.particles) { wx += p.x * p.weight; wy += p.y * p.weight; total += p.weight; }
+    const meanX = wx / total, meanY = wy / total;
+    let varX = 0, varY = 0;
+    for (let p of this.particles) {
+      const dx = p.x - meanX, dy = p.y - meanY;
+      varX += dx * dx * p.weight; varY += dy * dy * p.weight;
+    }
+    const spread = Math.sqrt(varX + varY);
+    this.estimate = {
+      x: meanX, y: meanY,
+      confidence: Math.min(1, 1 / (1 + spread * 0.3)),
+      spread: spread
+    };
+    return this.estimate;
+  }
+
+  getParticles() { return this.particles; }
+}
+
+// ================================================================
+// FINGERPRINT DATABASE — RSSI mapping + k-NN weighted localization
+// Base: "RSSI Fingerprinting with Gaussian Processes" — IEEE IoTJ 2020
+// ================================================================
+class FingerprintDB {
+  constructor() {
+    this.points = [];
+  }
+
+  addPoint(x, y, rssi, deviceId) {
+    this.points.push({ x, y, rssi, deviceId, time: Date.now() });
+  }
+
+  clear() { this.points = []; }
+
+  // k-NN com ponderação inversa à distância no espaço RSSI
+  locate(rssi, deviceId, k = 5) {
+    const relevant = this.points.filter(p => p.deviceId === deviceId);
+    if (relevant.length < 3) return null;
+    const kk = Math.min(k, relevant.length);
+    relevant.sort((a, b) => Math.abs(a.rssi - rssi) - Math.abs(b.rssi - rssi));
+    const nearest = relevant.slice(0, kk);
+    let tw = 0, tx = 0, ty = 0;
+    for (let n of nearest) {
+      const w = 1 / (Math.abs(n.rssi - rssi) + 0.1);
+      tx += n.x * w; ty += n.y * w; tw += w;
+    }
+    return { x: tx / tw, y: ty / tw, neighbors: kk, error: Math.abs(nearest[0].rssi - rssi) };
+  }
+
+  // Grelha de interpolação IDW para heat map
+  generateHeatMap(res = 25, deviceId = null) {
+    const relevant = deviceId ? this.points.filter(p => p.deviceId === deviceId) : this.points;
+    if (relevant.length < 2) return null;
+    const xs = relevant.map(p => p.x), ys = relevant.map(p => p.y);
+    const minX = Math.min(...xs) - 0.5, maxX = Math.max(...xs) + 0.5;
+    const minY = Math.min(...ys) - 0.5, maxY = Math.max(...ys) + 0.5;
+    const stepX = (maxX - minX) / res, stepY = (maxY - minY) / res;
+    const grid = [];
+    for (let i = 0; i <= res; i++) {
+      grid[i] = [];
+      for (let j = 0; j <= res; j++) {
+        grid[i][j] = this._idw(minX + i * stepX, minY + j * stepY, relevant);
+      }
+    }
+    return { grid, minX, maxX, minY, maxY, stepX, stepY, res };
+  }
+
+  _idw(x, y, pts, power = 2) {
+    let tw = 0, ts = 0;
+    for (let p of pts) {
+      const d = Math.sqrt((x - p.x) ** 2 + (y - p.y) ** 2);
+      if (d < 0.01) return p.rssi;
+      const w = 1 / Math.pow(d, power);
+      ts += p.rssi * w; tw += w;
+    }
+    return ts / tw;
+  }
+}
+
+// ================================================================
+// TRILATERATION ENGINE — Mínimos quadrados para 3+ receptores
+// Base: "Bluetooth Triangulation Systems Survey" — IEEE COMST 2022
+// ================================================================
+class TrilaterationEngine {
+  constructor() {
+    // 3 receptores virtuais em posições fixas
+    this.receivers = [
+      { x: -4, y: -3, label: 'RX-1' },
+      { x: 5, y: -2, label: 'RX-2' },
+      { x: 0, y: 5, label: 'RX-3' }
+    ];
+    this.rssiReadings = [null, null, null];
+    this.lastPosition = null;
+    this.residual = Infinity;
+  }
+
+  setRssi(idx, rssi, txPower = -59, nVal = 2.4) {
+    if (idx < 0 || idx > 2) return;
+    this.rssiReadings[idx] = rssi;
+    this.solve(txPower, nVal);
+  }
+
+  // Resolve por linearização (mínimos quadrados fechados)
+  solve(txPower = -59, nVal = 2.4) {
+    const active = this.receivers.map((rx, i) => ({ ...rx, rssi: this.rssiReadings[i] }))
+      .filter(rx => rx.rssi !== null);
+    if (active.length < 3) { this.lastPosition = null; return null; }
+
+    // Converte RSSI para distância
+    const withDist = active.map(rx => {
+      const ratio = (txPower - rx.rssi) / (10 * nVal);
+      return { ...rx, d: Math.max(0.1, Math.pow(10, ratio)) };
+    });
+
+    // Trilateração linear: referência = primeiro receptor ativo
+    const ref = withDist[0];
+    const A = [], b = [];
+    for (let i = 1; i < withDist.length; i++) {
+      const ri = withDist[i];
+      A.push([2 * (ri.x - ref.x), 2 * (ri.y - ref.y)]);
+      b.push(ref.d * ref.d - ri.d * ri.d - ref.x * ref.x - ref.y * ref.y + ri.x * ri.x + ri.y * ri.y);
+    }
+
+    // Solução pelo método dos mínimos quadrados (pseudo-inversa)
+    const a11 = A.reduce((s, row) => s + row[0] * row[0], 0);
+    const a12 = A.reduce((s, row) => s + row[0] * row[1], 0);
+    const a22 = A.reduce((s, row) => s + row[1] * row[1], 0);
+    const b1 = A.reduce((s, row, i) => s + row[0] * b[i], 0);
+    const b2 = A.reduce((s, row, i) => s + row[1] * b[i], 0);
+
+    const det = a11 * a22 - a12 * a12;
+    if (Math.abs(det) < 1e-10) return null;
+
+    const x = (b1 * a22 - b2 * a12) / det;
+    const y = (a11 * b2 - a12 * b1) / det;
+
+    // Erro residual
+    let res = 0;
+    for (let ri of withDist) {
+      const dist = Math.sqrt((x - ri.x) ** 2 + (y - ri.y) ** 2);
+      res += (dist - ri.d) ** 2;
+    }
+    this.residual = Math.sqrt(res / withDist.length);
+    this.lastPosition = { x, y };
+    return { x, y };
+  }
+}
+
+// ================================================================
+// ENVIRONMENTAL CALIBRATOR — Ajusta n baseado na variância do RSSI
+// ================================================================
+class EnvironmentalCalibrator {
+  constructor() {
+    this.window = [];
+    this.n = 2.4;
+    this.txPower = -59;
+    this.maxWindow = 80;
+  }
+
+  addSample(rssi) {
+    this.window.push(rssi);
+    if (this.window.length > this.maxWindow) this.window.shift();
+    this._recalc();
+  }
+
+  _recalc() {
+    if (this.window.length < 8) return;
+    const mean = this.window.reduce((s, v) => s + v, 0) / this.window.length;
+    const variance = this.window.reduce((s, v) => s + (v - mean) ** 2, 0) / this.window.length;
+    const stdDev = Math.sqrt(variance);
+    // n = 2.0 (espaço livre) a 4.0 (obstáculos densos)
+    this.n = Math.min(4.0, Math.max(2.0, 2.0 + stdDev * 0.08));
+    this.stdDev = stdDev;
+  }
+
+  getN() { return this.n; }
+  getStdDev() { return this.stdDev || 0; }
+}
+
+// ================================================================
+// MODELO DE DISPOSITIVO BLE (APRIMORADO)
+// ================================================================
+class BLEDevice {
+  constructor(name, realDevice = null) {
+    this.id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    this.name = name;
+    this.realDevice = realDevice;
+    this.rssi = -55 - Math.random() * 35;
+    this.rssiFiltered = this.rssi;
+    this.angle = Math.random() * Math.PI * 2;
+    this.lastUpdate = Date.now();
+    this.speed = 0;
+    this.moving = false;
+    this.alertActive = false;
+    this.alertEndTime = 0;
+    this.confidence = 0.5;
+    this.trail = [];
+
+    // Posição 2D simulada (coordenadas reais em metros)
+    this.posX = (Math.random() - 0.5) * 10;
+    this.posY = (Math.random() - 0.5) * 10;
+    this.targetX = this.posX;
+    this.targetY = this.posY;
+
+    // Kalman filter (default)
+    this.kalman = new KalmanFilter(0.01, 0.4, 1, this.rssi);
+    // Particle filter (2D)
+    this.pf = new ParticleFilter(600, 12);
+
+    // Histórico RSSI
+    this.rawRSSIs = [];
+
+    // Path loss
+    this.pathLossN = 2.4;
+    this.txPower = -59;
+  }
+
+  updateRSSI(rawRssi) {
+    this.rawRSSIs.push(rawRssi);
+    if (this.rawRSSIs.length > 30) this.rawRSSIs.shift();
+
+    // Kalman
+    this.rssiFiltered = this.kalman.update(rawRssi);
+
+    // Particle filter: predict + update + resample
+    const dt = (Date.now() - this.lastUpdate) / 1000;
+    const driftX = this.speed * 0.3 * Math.cos(this.angle);
+    const driftY = this.speed * 0.3 * Math.sin(this.angle);
+    const noise = Math.max(0.05, 0.15 + this.speed * 0.02);
+    this.pf.predict(noise, driftX, driftY);
+    this.pf.update(rawRssi, 0, 0, this.txPower, this.pathLossN);
+    this.pf.resample();
+    const est = this.pf.computeEstimate();
+
+    // Se o particle filter converge, atualiza posição
+    if (est.confidence > 0.3) {
+      this.posX = this.posX * 0.3 + est.x * 0.7;
+      this.posY = this.posY * 0.3 + est.y * 0.7;
+    }
+
+    // Velocidade
+    if (this.rawRSSIs.length >= 3) {
+      if (dt > 0.01) {
+        const deltaRSSI = this.rssiFiltered - this.rawRSSIs[this.rawRSSIs.length - 3];
+        this.speed = Math.abs(deltaRSSI) / dt * 0.12;
+        this.moving = this.speed > 0.25;
+      }
+    }
+
+    // Confiança
+    const strength = Math.max(0, Math.min(1, (this.rssiFiltered + 95) / 50));
+    const variance = this.rawRSSIs.length > 2
+      ? Math.sqrt(this.rawRSSIs.reduce((s, v) => s + (v - this.rssiFiltered) ** 2, 0) / this.rawRSSIs.length)
+      : 10;
+    const stability = Math.max(0, Math.min(1, 1 - variance / 20));
+    this.confidence = strength * 0.3 + stability * 0.3 + est.confidence * 0.4;
+
+    // Alerta
+    if (Math.abs(rawRssi - this.rssiFiltered) > 8) {
+      this.alertActive = true;
+      this.alertEndTime = Date.now() + 1500;
+    }
+    if (this.alertActive && Date.now() > this.alertEndTime) this.alertActive = false;
+
+    this.rssi = rawRssi;
+    this.lastUpdate = Date.now();
+  }
+
+  getDistance() {
+    const ratio = (this.txPower - this.rssiFiltered) / (10 * this.pathLossN);
+    return Math.pow(10, ratio);
+  }
+
+  getConfidenceRadius() {
+    const noise = Math.max(0, Math.min(1, (this.rssiFiltered + 95) / 50));
+    return 0.2 + (1 - noise) * 1.5;
+  }
+
+  updateTrail() {
+    this.trail.push({ x: this.posX, y: this.posY, time: Date.now() });
+    if (this.trail.length > 40) this.trail.shift();
+  }
+}
+
+// ================================================================
+// KALMAN FILTER 1D (mantido para compatibilidade)
+// ================================================================
+class KalmanFilter {
+  constructor(q = 0.01, r = 0.4, p = 1, x0 = -70) {
+    this.q = q; this.r = r; this.p = p; this.x = x0; this.k = 0;
+  }
+  update(m) { this.p += this.q; this.k = this.p / (this.p + this.r); this.x += this.k * (m - this.x); this.p = (1 - this.k) * this.p; return this.x; }
+  getValue() { return this.x; }
+  getGain() { return this.k; }
+}
+
+// ================================================================
+// ESTADO GLOBAL
+// ================================================================
+const canvas = document.getElementById('radarCanvas');
+const ctx = canvas.getContext('2d');
+const consoleBox = document.getElementById('terminal-console');
+const statusText = document.getElementById('status-text');
+const tagsWrapper = document.getElementById('tags-wrapper');
+
+let scanning = false;
+let mode = 'general';
+let radarAngle = 0;
+let devices = [];
+let focusedDeviceId = null;
+let audioCtx = null;
+let lastBeepTime = 0;
+let scanLoopId = null;
+let tagsIntervalId = null;
+let useParticleFilter = true; // Toggle entre Kalman e Particle
+let showHeatMap = false;
+let heatMapData = null;
+
+// Fingerprint
+const fpDB = new FingerprintDB();
+
+// Trilateration
+const trilat = new TrilaterationEngine();
+
+// Environmental calibrator (global)
+const calibrator = new EnvironmentalCalibrator();
+
+// Constantes path loss
+let pathLossN = 2.4;
+const txPower = -59;
+
+// Sidebar
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggle-btn');
+const focusStats = document.getElementById('focus-stats');
+const fpPanel = document.getElementById('fp-panel');
+const trilatPanel = document.getElementById('trilat-panel');
+
+// ================================================================
+// LOG
+// ================================================================
+function writeLog(text) {
+  const t = new Date().toLocaleTimeString();
+  consoleBox.innerHTML += `\n[${t}] ${text}`;
+  consoleBox.scrollTop = consoleBox.scrollHeight;
+}
+
+function playBeep(freq = 1200, dur = 0.15, vol = 0.06) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ================================================================
+// MODOS
+// ================================================================
+function setMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
+  if (btn) btn.classList.add('active');
+
+  focusStats.classList.toggle('visible', mode === 'focus');
+  fpPanel.classList.toggle('visible', mode === 'fingerprint');
+  trilatPanel.classList.toggle('visible', mode === 'trilateration');
+
+  if (mode === 'focus' && !focusedDeviceId && devices.length > 0) focusDevice(devices[0].id);
+  if (mode === 'focus' && focusedDeviceId) updateFocusStats();
+  if (mode === 'fingerprint') updateFPStats();
+  if (mode === 'trilateration') updateTrilatStats();
+  writeLog(`Modo: ${mode.toUpperCase()}`);
+}
+
+function focusDevice(deviceId) {
+  focusedDeviceId = deviceId;
+  document.querySelectorAll('.spy-tag').forEach(t => t.classList.toggle('selected', t.dataset.deviceId === deviceId));
+  if (mode === 'focus') updateFocusStats();
+}
+
+function getDevice(id) { return devices.find(d => d.id === id); }
+
+// ================================================================
+// FINGERPRINT
+// ================================================================
+let fpMode = 'calibrate'; // 'calibrate' | 'locate'
+
+function fpCalibrate() {
+  writeLog('FINGERPRINT: Clique no radar para marcar posição de calibração.');
+}
+
+canvas.addEventListener('click', (e) => {
+  if (mode !== 'fingerprint') return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const W = canvas.width, H = canvas.height;
+  // Converte pixel para coordenadas do mundo (-6 a +6 metros aproximadamente)
+  const worldX = (mx / W) * 12 - 6;
+  const worldY = (my / H) * 12 - 6;
+
+  if (devices.length > 0) {
+    const target = focusedDeviceId ? getDevice(focusedDeviceId) : devices[0];
+    if (target) {
+      fpDB.addPoint(worldX, worldY, target.rssiFiltered, target.id);
+      writeLog(`FINGERPRINT: Ponto (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) — RSSI ${target.rssiFiltered.toFixed(1)} dBm`);
+      updateFPStats();
+      playBeep(800, 0.1, 0.04);
+    }
+  }
+});
+
+function fpClear() {
+  fpDB.clear();
+  heatMapData = null;
+  updateFPStats();
+  writeLog('FINGERPRINT: Dados limpos.');
+}
+
+function updateFPStats() {
+  document.getElementById('fp-count').textContent = fpDB.points.length;
+  if (fpDB.points.length >= 3) {
+    const xs = fpDB.points.map(p => p.x);
+    const ys = fpDB.points.map(p => p.y);
+    const area = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
+    document.getElementById('fp-precision').textContent = area < 4 ? 'BOA' : area < 16 ? 'MÉDIA' : 'BAIXA';
+    document.getElementById('fp-coverage').style.width = Math.min(100, (fpDB.points.length / 20) * 100) + '%';
+    // Gera heat map
+    heatMapData = fpDB.generateHeatMap(20, focusedDeviceId || (devices.length > 0 ? devices[0].id : null));
+  } else {
+    document.getElementById('fp-precision').textContent = '—';
+    document.getElementById('fp-coverage').style.width = '0%';
+  }
+}
+
+// ================================================================
+// TRILATERAÇÃO
+// ================================================================
+function updateTrilatRx(idx, rssi) {
+  trilat.setRssi(idx, rssi, txPower, pathLossN);
+  updateTrilatStats();
+}
+
+function updateTrilatStats() {
+  const active = trilat.rssiReadings.filter(r => r !== null).length;
+  document.getElementById('trilat-rx').textContent = `${active}/3`;
+  if (trilat.lastPosition) {
+    document.getElementById('trilat-x').textContent = trilat.lastPosition.x.toFixed(3) + ' m';
+    document.getElementById('trilat-y').textContent = trilat.lastPosition.y.toFixed(3) + ' m';
+    document.getElementById('trilat-error').textContent = trilat.residual.toFixed(4);
+  } else {
+    document.getElementById('trilat-x').textContent = '—';
+    document.getElementById('trilat-y').textContent = '—';
+    document.getElementById('trilat-error').textContent = '—';
+  }
+}
+
+// ================================================================
+// FOCO STATS
+// ================================================================
+function updateFocusStats() {
+  if (mode !== 'focus' || !focusedDeviceId) return;
+  const d = getDevice(focusedDeviceId);
+  if (!d) return;
+
+  document.getElementById('filter-type').textContent = useParticleFilter ? 'PARTICLE' : 'KALMAN';
+  document.getElementById('focus-name').textContent = d.name;
+  document.getElementById('focus-dist').textContent = d.getDistance().toFixed(2) + ' m';
+  document.getElementById('focus-speed').textContent = d.speed.toFixed(2) + ' m/s' + (d.moving ? ' [MOV]' : '');
+  document.getElementById('focus-xy').textContent = `(${d.posX.toFixed(2)}, ${d.posY.toFixed(2)})`;
+  document.getElementById('focus-rssi').textContent = d.rssiFiltered.toFixed(1) + ' dBm';
+  document.getElementById('focus-precision').textContent = '\u00B1' + d.getConfidenceRadius().toFixed(2) + ' m';
+  document.getElementById('focus-confidence').style.width = (d.confidence * 100).toFixed(0) + '%';
+}
+
+// ================================================================
+// SIDEBAR TOGGLE
+// ================================================================
+toggleBtn.addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  toggleBtn.innerText = sidebar.classList.contains('collapsed') ? '»' : '«';
+});
+
+// ================================================================
+// SIMULAÇÃO REALÍSTICA (RSSI + movimento 2D)
+// ================================================================
+function createMockDevices() {
+  const names = ['SAMSUNG_GALAXY_S24','IPHONE_15_PRO','HEADSET_PILOTO_BLE','REPETIDOR_SALA_02','TAG_ENTREGA_BLE','NOTEBOOK_DELL_LAT'];
+  devices = names.map(name => {
+    const d = new BLEDevice(name);
+    d.posX = (Math.random() - 0.5) * 10;
+    d.posY = (Math.random() - 0.5) * 10;
+    d.targetX = d.posX; d.targetY = d.posY;
+    // RSSI inicial baseado na posição
+    const dist = Math.sqrt(d.posX*d.posX + d.posY*d.posY);
+    d.rssi = txPower - 10 * pathLossN * Math.log10(Math.max(0.3, dist)) + (Math.random() - 0.5) * 4;
+    d.rssiFiltered = d.rssi;
+    for (let i = 0; i < 5; i++) d.updateRSSI(d.rssi + (Math.random() - 0.5) * 3);
+    return d;
+  });
+  writeLog(`Simulação: ${devices.length} dispositivos em ambiente 2D.`);
+  updateTagsPanel();
+}
+
+function simulateMovement() {
+  if (!scanning || devices.length === 0) return;
+
+  devices.forEach(d => {
+    // Movimento suave no plano 2D
+    if (Math.random() < 0.02) {
+      d.targetX = (Math.random() - 0.5) * 10;
+      d.targetY = (Math.random() - 0.5) * 10;
+    }
+    const inertia = 0.97;
+    d.posX = d.posX * inertia + d.targetX * (1 - inertia) + (Math.random() - 0.5) * 0.04;
+    d.posY = d.posY * inertia + d.targetY * (1 - inertia) + (Math.random() - 0.5) * 0.04;
+
+    // Ângulo em relação à origem (receptor central)
+    d.angle = Math.atan2(d.posY, d.posX);
+
+    // RSSI simulado com multipath
+    const dist = Math.sqrt(d.posX * d.posX + d.posY * d.posY);
+    const rssiIdeal = txPower - 10 * pathLossN * Math.log10(Math.max(0.3, dist));
+    const multipath = Math.sin(Date.now() * 0.003 * d.angle) * 3 * (dist > 3 ? 1 : 0.3);
+    const noise = (Math.random() - 0.5) * 4;
+    const newRssi = Math.round(rssiIdeal + multipath + noise);
+
+    d.updateRSSI(newRssi);
+    d.updateTrail();
+    d.pathLossN = pathLossN;
+
+    // Ocasional pico (alguém andou perto)
+    if (Math.random() < 0.004) {
+      d.updateRSSI(d.rssi + (Math.random() - 0.5) * 20);
+      playBeep(900, 0.08, 0.04);
+      writeLog(`[MOV] ${d.name} — pico de sinal.`);
+    }
+
+    // Alimenta calibrator
+    calibrator.addSample(newRssi);
+    pathLossN = calibrator.getN();
+  });
+
+  // Atualiza trilateração com o primeiro dispositivo focado
+  if (mode === 'trilateration' && focusedDeviceId) {
+    const d = getDevice(focusedDeviceId);
+    if (d) {
+      // Simula 3 receptores lendo o mesmo dispositivo com variações diferentes
+      for (let i = 0; i < 3; i++) {
+        const rxDist = Math.sqrt(
+          (d.posX - trilat.receivers[i].x) ** 2 +
+          (d.posY - trilat.receivers[i].y) ** 2
+        );
+        const rxRssi = txPower - 10 * pathLossN * Math.log10(Math.max(0.3, rxDist)) + (Math.random() - 0.5) * 3;
+        trilat.setRssi(i, rxRssi, txPower, pathLossN);
+      }
+      updateTrilatStats();
+    }
+  }
+
+  updateTagsPanel();
+  if (mode === 'focus' && focusedDeviceId) updateFocusStats();
+}
+
+// ================================================================
+// PAINEL DE TAGS
+// ================================================================
+function updateTagsPanel() {
+  if (sidebar.classList.contains('collapsed')) return;
+  tagsWrapper.innerHTML = '';
+  if (devices.length === 0) {
+    tagsWrapper.innerHTML = '<div style="color:var(--term-dim);font-size:0.65rem;">Nenhum dispositivo.</div>';
+    return;
+  }
+  devices.forEach(d => {
+    const dist = d.getDistance();
+    const cls = d.alertActive ? 'spy-tag alert' : 'spy-tag';
+    const sel = d.id === focusedDeviceId ? ' selected' : '';
+    const mv = d.moving ? ' \u25B3' : '';
+    tagsWrapper.innerHTML += `
+      <div class="${cls}${sel}" data-device-id="${d.id}" onclick="focusDevice('${d.id}')">
+        <div style="display:flex;justify-content:space-between;">
+          <span>${d.name}${mv}</span>
+          <span style="color:${d.alertActive?'var(--alert)':'var(--term-dim)'}">${dist.toFixed(1)}m</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--term-dim);margin-top:1px;">
+          <span>R:${d.rssiFiltered.toFixed(0)}dBm</span>
+          <span>v:${d.speed.toFixed(1)}m/s</span>
+          <span style="color:${d.confidence>0.6?'var(--term)':'var(--alert)'}">${(d.confidence*100).toFixed(0)}%</span>
+          <span>(${d.posX.toFixed(1)},${d.posY.toFixed(1)})</span>
+        </div>
+      </div>`;
+  });
+}
+
+// ================================================================
+// RADAR CANVAS
+// ================================================================
+function drawRadar() {
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const maxR = W / 2 - 15;
+  const metersPerPixel = 6 / (maxR - 15); // ~6 metros até a borda
+
+  // Fundo
+  ctx.fillStyle = 'rgba(5,8,5,0.12)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Círculos com distância
+  for (let i = 1; i <= 5; i++) {
+    const r = (maxR / 5) * i;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,255,102,${0.05 + i * 0.025})`;
+    ctx.lineWidth = i === 5 ? 1 : 0.5;
+    ctx.stroke();
+    const estM = (r / maxR) * 6;
+    ctx.fillStyle = 'rgba(0,255,102,0.2)';
+    ctx.font = '7px Courier New';
+    ctx.fillText(`${estM.toFixed(1)}m`, cx + 3, cy - r + 9);
+  }
+
+  // Eixos
+  ctx.strokeStyle = 'rgba(0,255,102,0.06)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, 0); ctx.lineTo(cx, H);
+  ctx.moveTo(0, cy); ctx.lineTo(W, cy);
+  ctx.stroke();
+
+  // Legenda eixos
+  ctx.fillStyle = 'rgba(0,255,102,0.12)';
+  ctx.font = '6px Courier New';
+  ctx.fillText('+X', W - 20, cy - 5);
+  ctx.fillText('-X', 5, cy - 5);
+  ctx.fillText('+Y', cx + 5, 10);
+  ctx.fillText('-Y', cx + 5, H - 5);
+
+  // ================================================================
+  // HEAT MAP (Fingerprint)
+  // ================================================================
+  if (mode === 'fingerprint' && heatMapData) {
+    const g = heatMapData;
+    for (let i = 0; i < g.res; i++) {
+      for (let j = 0; j < g.res; j++) {
+        const val = g.grid[i][j];
+        if (val === undefined) continue;
+        // Normaliza RSSI para cor: -95 (azul) a -30 (vermelho)
+        const t = Math.max(0, Math.min(1, (val + 95) / 60));
+        const px = (g.minX + i * g.stepX + 6) / 12 * W;
+        const py = (g.minY + j * g.stepY + 6) / 12 * H;
+        const pw = (g.stepX / 12) * W;
+        const ph = (g.stepY / 12) * H;
+        // Gradiente: azul -> verde -> amarelo -> vermelho
+        const r = Math.min(255, Math.round(t * 4 * 255));
+        const gv = Math.min(255, Math.round((1 - Math.abs(t - 0.5) * 2) * 255));
+        const b = Math.min(255, Math.round((1 - t) * 255));
+        ctx.fillStyle = `rgba(${r},${gv},${b},0.15)`;
+        ctx.fillRect(px, py, pw + 1, ph + 1);
+      }
+    }
+  }
+
+  // ================================================================
+  // RECEPTORES DA TRILATERAÇÃO
+  // ================================================================
+  if (mode === 'trilateration') {
+    trilat.receivers.forEach((rx, i) => {
+      const px = (rx.x + 6) / 12 * W;
+      const py = (rx.y + 6) / 12 * H;
+      const hasSig = trilat.rssiReadings[i] !== null;
+
+      ctx.fillStyle = hasSig ? 'rgba(0,221,221,0.3)' : 'rgba(0,221,221,0.08)';
+      ctx.strokeStyle = 'rgba(0,221,221,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(px, py, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'var(--cyan)';
+      ctx.font = 'bold 7px Courier New';
+      ctx.fillText(rx.label, px + 12, py + 3);
+
+      if (hasSig) {
+        // Círculo de distância estimada
+        const dist = Math.pow(10, (txPower - trilat.rssiReadings[i]) / (10 * pathLossN));
+        const radiusPx = Math.min(maxR * 2, (dist / 6) * maxR);
+        ctx.beginPath();
+        ctx.arc(px, py, radiusPx, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,221,221,0.15)';
+        ctx.setLineDash([3, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(0,221,221,0.3)';
+        ctx.font = '6px Courier New';
+        ctx.fillText(`${dist.toFixed(1)}m`, px + 12, py + 12);
+      }
+    });
+
+    // Posição estimada
+    if (trilat.lastPosition) {
+      const px = (trilat.lastPosition.x + 6) / 12 * W;
+      const py = (trilat.lastPosition.y + 6) / 12 * H;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = 'var(--cyan)';
+      ctx.fillStyle = 'var(--cyan)';
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 7px Courier New';
+      ctx.fillText('TARGET', px + 10, py - 5);
+    }
+  }
+
+  // ================================================================
+  // NUVEM DE PARTÍCULAS (Modo Foco)
+  // ================================================================
+  if (mode === 'focus' && focusedDeviceId && useParticleFilter) {
+    const d = getDevice(focusedDeviceId);
+    if (d) {
+      const pts = d.pf.getParticles();
+      for (let p of pts) {
+        const px = (p.x + 6) / 12 * W;
+        const py = (p.y + 6) / 12 * H;
+        if (px < 0 || px > W || py < 0 || py > H) continue;
+        ctx.fillStyle = `rgba(255,170,0,${p.weight * 20})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // ================================================================
+  // LINHA DE VARREDURA
+  // ================================================================
+  if (scanning) {
+    radarAngle += 0.018;
+    ctx.strokeStyle = 'rgba(0,255,102,0.2)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + maxR * Math.cos(radarAngle), cy + maxR * Math.sin(radarAngle));
+    ctx.stroke();
+  }
+
+  // ================================================================
+  // DISPOSITIVOS
+  // ================================================================
+  devices.forEach(d => {
+    const isFocused = d.id === focusedDeviceId && mode === 'focus';
+    const isAlert = d.alertActive;
+
+    // Converte coordenadas do mundo para pixel
+    const px = (d.posX + 6) / 12 * W;
+    const py = (d.posY + 6) / 12 * H;
+
+    // Verifica bounds
+    if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return;
+
+    let color = isAlert ? 'var(--alert)' : isFocused ? 'var(--focus)' : 'var(--term)';
+
+    // Círculo de confiança
+    const confR = d.getConfidenceRadius() * 50;
+    ctx.beginPath();
+    ctx.arc(px, py, confR, 0, Math.PI * 2);
+    ctx.fillStyle = isAlert ? 'rgba(255,51,51,0.06)' : isFocused ? 'rgba(255,170,0,0.06)' : 'rgba(0,255,102,0.04)';
+    ctx.fill();
+    ctx.strokeStyle = isAlert ? 'rgba(255,51,51,0.12)' : isFocused ? 'rgba(255,170,0,0.12)' : 'rgba(0,255,102,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Trail (rastro)
+    if (d.trail.length > 2) {
+      for (let i = 1; i < d.trail.length; i++) {
+        const prev = d.trail[i - 1], curr = d.trail[i];
+        const ppx = (prev.x + 6) / 12 * W, ppy = (prev.y + 6) / 12 * H;
+        const cpx = (curr.x + 6) / 12 * W, cpy = (curr.y + 6) / 12 * H;
+        ctx.beginPath();
+        ctx.moveTo(ppx, ppy);
+        ctx.lineTo(cpx, cpy);
+        ctx.strokeStyle = `rgba(255,255,255,${(i / d.trail.length) * 0.12})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+    }
+
+    // Ponto
+    ctx.shadowBlur = isAlert ? 25 : isFocused ? 18 : 6;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px, py, isFocused ? 6 : isAlert ? 5 : 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.fillStyle = isFocused ? 'var(--focus)' : '#eee';
+    ctx.font = isFocused ? 'bold 8px Courier New' : '7px Courier New';
+    const dist = d.getDistance();
+    const lbl = isFocused ? `${d.name} [FOCO] ${dist.toFixed(2)}m` : `${d.name} ${dist.toFixed(1)}m`;
+    ctx.fillText(lbl, px + 9, py - 5);
+
+    // Velocidade
+    if (d.moving || isAlert) {
+      ctx.fillStyle = isAlert ? 'var(--alert)' : 'rgba(255,170,0,0.5)';
+      ctx.font = '6px Courier New';
+      ctx.fillText(`${d.speed.toFixed(2)} m/s ${d.moving ? '\u25B3' : ''}`, px + 9, py + 7);
+    }
+
+    // Linha direcional (apenas para foco/alerta)
+    if (isFocused || isAlert) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(px, py);
+      ctx.strokeStyle = isAlert ? 'rgba(255,51,51,0.12)' : 'rgba(255,170,0,0.1)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([3, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
+  // Legenda foco
+  if (mode === 'focus' && focusedDeviceId) {
+    const d = getDevice(focusedDeviceId);
+    if (d) {
+      ctx.fillStyle = 'rgba(255,170,0,0.25)';
+      ctx.font = '8px Courier New';
+      ctx.fillText(`>>> ${d.name} | ${d.getDistance().toFixed(2)}m | (${d.posX.toFixed(2)},${d.posY.toFixed(2)}) | ${d.speed.toFixed(2)}m/s`, 10, H - 10);
+    }
+  }
+
+  if (scanning) requestAnimationFrame(drawRadar);
+}
+
+// ================================================================
+// BLE REAL
+// ================================================================
+async function scanRealBLE() {
+  if (!navigator.bluetooth) { writeLog('[ERRO] Web Bluetooth indisponível.'); return; }
+  try {
+    writeLog('[BLE] Solicitando dispositivo...');
+    const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] });
+    writeLog(`[BLE] Pareado: ${device.name || 'DESCONHECIDO'}`);
+    let existing = devices.find(d => d.name === (device.name || device.id));
+    if (!existing) {
+      const bd = new BLEDevice(device.name || ('BLE_' + device.id.slice(0, 8)), device);
+      devices.push(bd);
+      writeLog(`[BLE] Adicionado: ${bd.name}`);
+    }
+    try {
+      await device.watchAdvertisements();
+      writeLog('[BLE] watchAdvertisements OK — RSSI real contínuo.');
+      device.addEventListener('advertisementreceived', (ev) => {
+        const bd = devices.find(d => d.realDevice === device);
+        if (bd && ev.rssi !== undefined) bd.updateRSSI(ev.rssi);
+      });
+    } catch (e) {
+      writeLog('[BLE] watchAdvertisements não suportado (requer flag experimental).');
+    }
+    if (!scanning) { document.getElementById('scan-btn').click(); }
+  } catch (e) { writeLog('[BLE] Cancelado.'); }
+}
+
+// ================================================================
+// BOTÕES
+// ================================================================
+document.getElementById('scan-btn').addEventListener('click', () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!scanning) {
+    scanning = true;
+    document.getElementById('scan-btn').textContent = 'PARAR';
+    statusText.textContent = '[ESCANEANDO]';
+    statusText.className = 'status-badge';
+    writeLog('Varredura iniciada.');
+    if (devices.length === 0) createMockDevices();
+    if (tagsIntervalId) clearInterval(tagsIntervalId);
+    tagsIntervalId = setInterval(() => updateTagsPanel(), 400);
+    if (scanLoopId) clearInterval(scanLoopId);
+    scanLoopId = setInterval(() => simulateMovement(), 150);
+    drawRadar();
+  } else {
+    scanning = false;
+    document.getElementById('scan-btn').textContent = 'INICIAR';
+    statusText.textContent = '[IDLE]';
+    statusText.className = 'status-badge idle';
+    if (scanLoopId) { clearInterval(scanLoopId); scanLoopId = null; }
+    if (tagsIntervalId) { clearInterval(tagsIntervalId); tagsIntervalId = null; }
+    writeLog('Varredura finalizada.');
+  }
+});
+
+document.getElementById('scan-ble-btn').addEventListener('click', async () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  await scanRealBLE();
+});
+
+// ================================================================
+// INICIALIZAÇÃO
+// ================================================================
+createMockDevices();
+drawRadar();
+writeLog('[SISTEMA] AGÊNCIA SOMBRA V4 — PARTICLE FILTER + FINGERPRINT + TRILATERAÇÃO.');
+writeLog('[SISTEMA] Modos: GERAL (multi-alvo) | FOCO (PF 2D) | FINGERPRINT (mapa de sinal) | TRILAT (triangulação).');
+writeLog('[SISTEMA] Precisão estimada: ±0.2m (LOS forte) a ±1.5m (NLOS).');
+writeLog('[SISTEMA] Clique no radar no modo FINGERPRINT para marcar pontos de calibração.');
+
+// Atualiza info display
+setInterval(() => {
+  document.getElementById('env-display').textContent = pathLossN.toFixed(2);
+  document.getElementById('sigma-display').textContent = calibrator.getStdDev() ? calibrator.getStdDev().toFixed(1) : '—';
+  document.getElementById('filter-display').textContent = useParticleFilter ? 'PARTICLE' : 'KALMAN';
+}, 800);
+
+// Atualiza FP stats periodicamente no modo fingerprint
+setInterval(() => {
+  if (mode === 'fingerprint') updateFPStats();
+}, 1000);
+
+window.addEventListener('resize', () => {
+  const s = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.7, 600);
+  canvas.width = s; canvas.height = s;
+  if (!scanning) drawRadar();
+});
+</script>
+</body>
+</html>

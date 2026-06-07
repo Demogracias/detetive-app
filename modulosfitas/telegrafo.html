@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posto de Escuta - Código Morse</title>
+    <style>
+        :root {
+            --bg-color: #030303;
+            --text-color: #a8a8a8;
+            --highlight: #d4aa00; /* Âmbar de terminais antigos */
+            --border: #333;
+            --font-noir: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-noir);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--highlight);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            text-shadow: 0 0 5px var(--highlight);
+            text-align: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: grid;
+            gap: 25px;
+        }
+
+        .panel {
+            background-color: #080808;
+            border: 1px solid var(--border);
+            padding: 20px;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(212, 170, 0, 0.05), 0 0 10px rgba(0,0,0,1);
+        }
+
+        .panel::before {
+            content: "SISTEMA RÁDIO // SECRETO";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: var(--border);
+            font-size: 0.7em;
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            font-size: 1.1em;
+            color: var(--text-color);
+            margin-top: 0;
+            border-left: 3px solid var(--highlight);
+            padding-left: 10px;
+            text-transform: uppercase;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 15px;
+        }
+
+        textarea {
+            width: 100%;
+            background-color: #000;
+            color: var(--highlight);
+            border: 1px solid var(--border);
+            padding: 10px;
+            font-family: var(--font-noir);
+            font-size: 1em;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--highlight);
+            box-shadow: 0 0 5px rgba(212, 170, 0, 0.2);
+        }
+
+        button {
+            background-color: #111;
+            color: var(--highlight);
+            border: 1px solid var(--highlight);
+            padding: 10px 20px;
+            font-family: var(--font-noir);
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.2s;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            background-color: var(--highlight);
+            color: #000;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-top: 15px;
+            background: #0a0a0a;
+            padding: 10px;
+            border: 1px solid #222;
+        }
+
+        input[type="range"] {
+            accent-color: var(--highlight);
+        }
+
+        .log {
+            font-size: 0.9em;
+            color: #777;
+            min-height: 20px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .led {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #330000;
+            border: 1px solid #000;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+            transition: background-color 0.05s;
+        }
+
+        .led.active {
+            background-color: #ff0000;
+            box-shadow: 0 0 10px #ff0000, inset 0 0 5px #ffcccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Posto de Escuta Nº 4</h1>
+    
+    <div class="container">
+        
+        <div class="panel">
+            <h2>I. O Transmissor (Codificar & Tocar)</h2>
+            
+            <label>Mensagem em Texto Claro</label>
+            <textarea id="text-input" rows="3" placeholder="Digite a mensagem a ser convertida..."></textarea>
+            
+            <div class="controls">
+                <button onclick="encodeAndTransmit()">Transcrever & Transmitir</button>
+                <button onclick="stopAudio()" style="border-color: #550000; color: #cc0000;">Abortar Sinal</button>
+                <div class="led" id="tx-led"></div>
+                <div style="flex-grow: 1;"></div>
+                <label style="margin: 0;">Frequência (Hz): <span id="freq-val">600</span></label>
+                <input type="range" id="freq-slider" min="400" max="1000" value="600" oninput="document.getElementById('freq-val').innerText = this.value">
+                <label style="margin: 0;">WPM: <span id="wpm-val">15</span></label>
+                <input type="range" id="wpm-slider" min="5" max="40" value="15" oninput="document.getElementById('wpm-val').innerText = this.value">
+            </div>
+            
+            <label>Fita Perfurada (Código Morse)</label>
+            <textarea id="morse-output" rows="3" readonly></textarea>
+        </div>
+
+        <div class="panel">
+            <h2>II. O Interceptador (Decodificar)</h2>
+            
+            <label>Sinal Interceptado (Use pontos '.', traços '-' e barras '/' para separar palavras)</label>
+            <textarea id="morse-input" rows="3" placeholder=".... --- .-.. .- / -- ..- -. -.. ---"></textarea>
+            
+            <button onclick="decodeMorse()">Traduzir Frequência</button>
+            <div id="decode-log" class="log">Aguardando decodificação...</div>
+            
+            <label>Mensagem Revelada</label>
+            <textarea id="text-output" rows="3" readonly></textarea>
+        </div>
+
+    </div>
+
+    <script>
+        // Dicionário Oficial
+        const morseDict = {
+            'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
+            'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
+            'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
+            'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+            'Y': '-.--', 'Z': '--..',
+            '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+            '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+            '.': '.-.-.-', ',': '--..--', '?': '..--..', '\'': '.----.', '!': '-.-.--',
+            '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...',
+            ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-',
+            '"': '.-..-.', '$': '...-..-', '@': '.--.-.', ' ': '/'
+        };
+
+        // Dicionário Reverso para Decodificação
+        const reverseDict = Object.entries(morseDict).reduce((acc, [char, morse]) => {
+            acc[morse] = char;
+            return acc;
+        }, {});
+
+        // Variáveis de Áudio
+        let audioCtx;
+        let isPlaying = false;
+        let stopPlayback = false;
+
+        // Limpar acentos e caracteres não suportados
+        function sanitizeInput(str) {
+            return str.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        // I. Traduzir e Transmitir
+        async function encodeAndTransmit() {
+            if (isPlaying) return;
+            
+            const rawText = document.getElementById('text-input').value;
+            const text = sanitizeInput(rawText);
+            
+            if (!text) return;
+
+            let morseResult = [];
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (morseDict[char]) {
+                    morseResult.push(morseDict[char]);
+                } else if (char === '\n') {
+                    morseResult.push('/');
+                }
+            }
+            
+            const morseString = morseResult.join(' ');
+            document.getElementById('morse-output').value = morseString;
+            
+            await playMorse(morseString);
+        }
+
+        // Sistema de Áudio (Oscilador Web Audio API)
+        async function playMorse(morseStr) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+            isPlaying = true;
+            stopPlayback = false;
+            const led = document.getElementById('tx-led');
+            
+            const freq = document.getElementById('freq-slider').value;
+            const wpm = document.getElementById('wpm-slider').value;
+            
+            // Fórmulas de tempo baseadas em WPM (Palavras por Minuto)
+            // PARIS standard: 1 WPM = 50 pontos por minuto. 1 ponto = 1.2 / WPM segundos.
+            const dotTime = 1.2 / wpm; 
+            const dashTime = dotTime * 3;
+            const symbolSpace = dotTime; // Espaço entre pontos/traços da mesma letra
+            const letterSpace = dotTime * 3; // Espaço entre letras
+            const wordSpace = dotTime * 7; // Espaço entre palavras
+
+            const playBeep = (duration) => {
+                return new Promise(resolve => {
+                    if (stopPlayback) return resolve();
+                    
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = freq;
+                    
+                    // Suavizar clique (Attack/Release rápidos)
+                    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.01);
+                    gainNode.gain.setValueAtTime(1, audioCtx.currentTime + duration - 0.01);
+                    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.start();
+                    led.classList.add('active');
+                    
+                    setTimeout(() => {
+                        oscillator.stop();
+                        led.classList.remove('active');
+                        resolve();
+                    }, duration * 1000);
+                });
+            };
+
+            const sleep = (duration) => new Promise(resolve => setTimeout(resolve, duration * 1000));
+
+            for (let i = 0; i < morseStr.length; i++) {
+                if (stopPlayback) break;
+
+                const char = morseStr[i];
+                if (char === '.') {
+                    await playBeep(dotTime);
+                    await sleep(symbolSpace);
+                } else if (char === '-') {
+                    await playBeep(dashTime);
+                    await sleep(symbolSpace);
+                } else if (char === ' ') {
+                    // Letra termina. (-1 symbolSpace porque já aguardamos após o bipe)
+                    await sleep(letterSpace - symbolSpace); 
+                } else if (char === '/') {
+                    // Palavra termina.
+                    await sleep(wordSpace - letterSpace); 
+                }
+            }
+
+            isPlaying = false;
+        }
+
+        // Interromper a transmissão no meio
+        function stopAudio() {
+            stopPlayback = true;
+            isPlaying = false;
+            document.getElementById('tx-led').classList.remove('active');
+        }
+
+        // II. Decodificar
+        function decodeMorse() {
+            const log = document.getElementById('decode-log');
+            const morseInput = document.getElementById('morse-input').value.trim();
+            
+            if (!morseInput) {
+                log.innerText = "Sinal vazio. Impossível interceptar.";
+                return;
+            }
+
+            // Separar palavras por '/', e letras por espaços
+            const words = morseInput.split('/');
+            let decodedText = '';
+
+            for (let i = 0; i < words.length; i++) {
+                const letters = words[i].trim().split(/\s+/); // Separa por 1 ou mais espaços
+                for (let j = 0; j < letters.length; j++) {
+                    const char = reverseDict[letters[j]];
+                    if (char) {
+                        decodedText += char;
+                    } else if (letters[j] !== '') {
+                        decodedText += '#'; // Caractere desconhecido
+                    }
+                }
+                if (i < words.length - 1) decodedText += ' ';
+            }
+
+            document.getElementById('text-output').value = decodedText;
+            log.innerText = "Análise concluída. Ocultando rastros.";
+        }
+    </script>
+</body>
+</html>

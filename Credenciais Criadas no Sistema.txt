@@ -1,0 +1,43 @@
+Credenciais Criadas no Sistema
+
+Chave de Acesso da Agência (Product Key): AGENCIA-NOIR-1947 (Necessária para criar novas contas de usuário)
+
+Senha do Administrador (ADM): ADM-SHADOW-X (Necessária para anexar e queimar módulos/fitas)
+
+ADM DO ENIGMA: turing
+
+--- PASSWORDS DAS FITAS (Sistema de Deck) ---
+
+Arquivos (QG Central): PRINCERED
+Parabellum: TEQUILASUNRISE
+Radar Azul Noir V4: BLEV4RADAR
+Second Brain Test 14: EIDOSERGOPROXY
+Telégrafo: bellwhistlezl
+NoteBrain (Segundo Cérebro Nexus): EIDOSERGOPROXY
+Calculadora Híbrida (Terminal-9): TERMINAL9
+Codificador Noir: CIPHERNOIR
+Compressor (Compartimento Estanque): COMPARTIMENTO
+Chronos-Astro: CRONOSASTRO
+DEFCON (Terminal GZ): DEFCONGZ
+Estripador (Projeto Ripper): RIPPERMATRIX
+Gráfico (Análise Tática V2): TATICAV2
+Incinerador (Terra Arrasada): SCORCHEDEARTH
+LabGen2 (Mega Noir): MEGANOIR
+Máquina do Caos (AlephTron): ALEPHTRON
+Microscopia (B.I.M.): BIMSEGURANCA
+Módulo Síntese Procedural Exobiologia: EXOMATRIZ
+NoirCrypto (Protocolo Sombra): SHADOWPROTOCOL
+Origami (Dessecador Estrutural): ORIGAMIDESSEC
+Pandêmico (Simulador): PANDEMICOSIM
+Pink Whale (Acoustic Recon): PINKWHALE
+Radar (Varredura Fotônica): FOTONICRADAR
+Ruído Entrópico Preditivo (Sentinela): SENTINELAFADIGA
+Sombra Dentro da Sombra (Ponto Cego): PONTOCEGO
+Xenobiologia Core: EXOBIOLOGY2026
+Engenharia Social (Módulo Fita): SOCIALENGINEER
+Treinamento HUMINT (Módulo Fita): HUMINTFIELD
+
+--- OUTRAS CREDENCIAIS (não vinculadas a fitas) ---
+
+Mural de caso: OBSERVEREAL2
+Hydra: MANYHEADS9

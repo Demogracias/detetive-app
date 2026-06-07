@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agência Sombra - Esteganografia LSB</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --text-color: #c0c0c0;
+            --highlight: #ffffff;
+            --accent: #550000;
+            --border: #333333;
+            --font-noir: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-noir);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--highlight);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+            text-shadow: 2px 2px 4px #000;
+            text-align: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background-color: rgba(10, 10, 10, 0.85);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 5px 5px 20px rgba(0,0,0,0.9);
+            position: relative;
+        }
+
+        .panel::before {
+            content: "CONFIDENCIAL";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: var(--accent);
+            font-size: 0.7em;
+            font-weight: bold;
+            letter-spacing: 2px;
+            opacity: 0.5;
+        }
+
+        h2 {
+            font-size: 1.1em;
+            color: var(--highlight);
+            margin-top: 0;
+            border-left: 3px solid var(--text-color);
+            padding-left: 10px;
+            text-transform: uppercase;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            color: #777;
+            text-transform: uppercase;
+        }
+
+        input[type="file"] {
+            margin-bottom: 15px;
+            color: var(--highlight);
+            font-family: var(--font-noir);
+        }
+
+        textarea {
+            width: 100%;
+            background-color: #000;
+            color: var(--highlight);
+            border: 1px solid var(--border);
+            padding: 10px;
+            font-family: var(--font-noir);
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--text-color);
+        }
+
+        button {
+            background-color: #111;
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+            padding: 10px 20px;
+            font-family: var(--font-noir);
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        button:hover {
+            background-color: var(--text-color);
+            color: #000;
+        }
+
+        .log {
+            font-size: 0.9em;
+            color: #aaa;
+            min-height: 20px;
+            margin-bottom: 10px;
+            font-style: italic;
+            border-left: 2px solid var(--accent);
+            padding-left: 8px;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            height: auto;
+            border: 1px dashed var(--border);
+            display: none;
+            margin-top: 10px;
+        }
+
+        .download-link {
+            display: none;
+            text-align: center;
+            color: var(--highlight);
+            text-decoration: none;
+            border: 1px solid var(--highlight);
+            padding: 10px;
+            background-color: #222;
+        }
+        
+        .download-link:hover {
+            background-color: var(--highlight);
+            color: #000;
+        }
+
+        .warning {
+            font-size: 0.8em;
+            color: #995555;
+            margin-top: -10px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Diretriz: Ponto Cego</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Operação: Inserção</h2>
+            
+            <label>1. Selecione a Imagem Hospedeira</label>
+            <input type="file" id="encode-image" accept="image/png, image/jpeg, image/webp">
+            
+            <label>2. Carga (Texto Confidencial)</label>
+            <textarea id="encode-text" rows="5" placeholder="Digite os dados que devem desaparecer..."></textarea>
+            
+            <div class="warning">
+                Atenção: A imagem gerada será um arquivo PNG. Converter ou enviar por apps que comprimem imagens (como WhatsApp) destruirá a mensagem.
+            </div>
+
+            <button onclick="encodeMessage()">Forjar Imagem</button>
+            <div id="encode-log" class="log">Aguardando diretrizes...</div>
+            
+            <img id="encoded-preview" class="image-preview" alt="Imagem Camuflada">
+            <a id="download-btn" class="download-link" download="documento_classificado.png">Baixar Imagem Segura (PNG)</a>
+        </div>
+
+        <div class="panel">
+            <h2>Operação: Extração</h2>
+            
+            <label>1. Interceptar Imagem Suspeita</label>
+            <input type="file" id="decode-image" accept="image/png">
+            
+            <button onclick="decodeMessage()">Analisar Anomalias</button>
+            <div id="decode-log" class="log">Aguardando artefato...</div>
+            
+            <label>2. Dados Recuperados</label>
+            <textarea id="decode-result" rows="6" readonly placeholder="A verdade surgirá aqui..."></textarea>
+        </div>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // O marcador que indica o fim da mensagem escondida
+        const DELIMITER = "||EOF_SHADOW||";
+
+        // Função utilitária para converter string (UTF-8) em array de bits
+        function stringToBits(str) {
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(str);
+            let bits = "";
+            for (let i = 0; i < bytes.length; i++) {
+                bits += bytes[i].toString(2).padStart(8, '0');
+            }
+            return bits;
+        }
+
+        // Função utilitária para converter array de bits em string (UTF-8)
+        function bitsToString(bits) {
+            const bytes = [];
+            for (let i = 0; i < bits.length; i += 8) {
+                const byteString = bits.slice(i, i + 8);
+                if (byteString.length === 8) {
+                    bytes.push(parseInt(byteString, 2));
+                }
+            }
+            const decoder = new TextDecoder();
+            return decoder.decode(new Uint8Array(bytes));
+        }
+
+        // Ler arquivo de imagem e retornar um objeto Image
+        function loadImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => reject(new Error("Falha ao carregar a imagem."));
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- ENCODE: Esconder a mensagem ---
+        async function encodeMessage() {
+            const fileInput = document.getElementById('encode-image');
+            const textInput = document.getElementById('encode-text').value;
+            const log = document.getElementById('encode-log');
+
+            if (!fileInput.files[0] || !textInput) {
+                log.innerText = "Erro: Imagem hospedeira ou texto ausente.";
+                return;
+            }
+
+            log.innerText = "Iniciando camuflagem...";
+
+            try {
+                const img = await loadImage(fileInput.files[0]);
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Prepara a mensagem com o delimitador
+                const fullMessage = textInput + DELIMITER;
+                const bits = stringToBits(fullMessage);
+
+                // Verifica capacidade (4 canais por pixel, 1 bit por canal)
+                if (bits.length > data.length) {
+                    log.innerText = "Erro: A imagem é muito pequena para a quantidade de texto.";
+                    return;
+                }
+
+                // Altera o bit menos significativo (LSB) de cada subpixel
+                for (let i = 0; i < bits.length; i++) {
+                    const bit = parseInt(bits[i], 10);
+                    // Zera o último bit (usando bitwise AND com 254) e adiciona o novo bit
+                    data[i] = (data[i] & 254) | bit;
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+
+                // Exibir preview e link de download
+                const outputDataUrl = canvas.toDataURL('image/png');
+                const preview = document.getElementById('encoded-preview');
+                const downloadBtn = document.getElementById('download-btn');
+
+                preview.src = outputDataUrl;
+                preview.style.display = "block";
+                
+                downloadBtn.href = outputDataUrl;
+                downloadBtn.style.display = "block";
+
+                log.innerText = "Operação concluída. Baixe o artefato gerado.";
+
+            } catch (error) {
+                log.innerText = "Falha crítica na matriz: " + error.message;
+            }
+        }
+
+        // --- DECODE: Revelar a mensagem ---
+        async function decodeMessage() {
+            const fileInput = document.getElementById('decode-image');
+            const log = document.getElementById('decode-log');
+            const resultBox = document.getElementById('decode-result');
+
+            if (!fileInput.files[0]) {
+                log.innerText = "Erro: Nenhuma imagem interceptada.";
+                return;
+            }
+
+            log.innerText = "Escanenando LSB (Bits Menos Significativos)...";
+            resultBox.value = "";
+
+            try {
+                const img = await loadImage(fileInput.files[0]);
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                let bits = "";
+                let extractedText = "";
+
+                // Percorre os pixels extraindo o último bit de cada canal
+                for (let i = 0; i < data.length; i++) {
+                    bits += (data[i] & 1).toString();
+
+                    // A cada 8 bits (1 byte), tenta converter para verificar o delimitador
+                    // Checamos em blocos maiores por performance, mas para simplificar, 
+                    // extraímos tudo até achar o delimitador.
+                    
+                    // Como a conversão constante pesa, checamos a cada ciclo razoável
+                    if (bits.length % 8 === 0) {
+                        // Tentar ler apenas o último caractere ou os últimos para achar o delimitador
+                        // Para não travar o browser, só faremos a checagem rigorosa quando a string "bits" for convertida.
+                    }
+                }
+                
+                // Conversão completa de todos os bits extraídos (pode ser pesado em imagens enormes)
+                // Para otimização no client-side: extraímos em blocos até achar o EOF.
+                let bytes = [];
+                for (let i = 0; i < bits.length; i += 8) {
+                    const byteString = bits.slice(i, i + 8);
+                    bytes.push(parseInt(byteString, 2));
+                    
+                    // Checa a presença do delimitador de forma progressiva
+                    if (bytes.length >= DELIMITER.length) {
+                        const currentString = new TextDecoder().decode(new Uint8Array(bytes));
+                        if (currentString.endsWith(DELIMITER)) {
+                            extractedText = currentString.substring(0, currentString.length - DELIMITER.length);
+                            break;
+                        }
+                    }
+                }
+
+                if (extractedText) {
+                    resultBox.value = extractedText;
+                    log.innerText = "Texto decodificado com sucesso.";
+                } else {
+                    log.innerText = "Falha: Nenhum dado esteganográfico encontrado ou formato destruído.";
+                }
+
+            } catch (error) {
+                log.innerText = "Erro ao processar imagem: " + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

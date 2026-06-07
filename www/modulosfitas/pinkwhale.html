@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E.C.H.O. - Bureau de Monitoramento Acústico</title>
+    <style>
+        :root {
+            --color-amber: #ffb000;
+            --color-amber-dim: #9c6b00;
+            --color-bg: #0a0a0d;
+            --color-panel: #141419;
+            --font-terminal: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-amber);
+            font-family: var(--font-terminal);
+            overflow-x: hidden;
+            padding: 20px;
+            background-image: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+        }
+
+        /* Efeito Noir de Persiana / Vinheta */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(0,0,0,0) 60%, rgba(0,0,0,0.7) 100%),
+                        linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, rgba(0,0,0,0.4) 100%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        header {
+            border-bottom: 2px double var(--color-amber);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 8px var(--color-amber);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+        }
+
+        header p {
+            font-size: 0.8rem;
+            color: var(--color-amber-dim);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: var(--color-panel);
+            border: 1px solid var(--color-amber-dim);
+            padding: 15px;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        }
+
+        .panel::after {
+            content: "CLASSIFIED";
+            position: absolute;
+            top: 5px; right: 10px;
+            font-size: 0.6rem;
+            color: rgba(255, 176, 0, 0.2);
+            border: 1px solid rgba(255, 176, 0, 0.2);
+            padding: 2px 5px;
+            transform: rotate(5deg);
+        }
+
+        .panel h2 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed var(--color-amber-dim);
+            padding-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            color: var(--color-amber-dim);
+        }
+
+        .status-value {
+            color: var(--color-amber);
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--color-amber);
+        }
+
+        /* Controles estilizados */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: #222;
+            height: 6px;
+            border: 1px solid var(--color-amber-dim);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            background: var(--color-amber);
+            width: 12px;
+            height: 20px;
+            cursor: pointer;
+            box-shadow: 0 0 5px var(--color-amber);
+        }
+
+        button {
+            background: transparent;
+            color: var(--color-amber);
+            border: 1px solid var(--color-amber);
+            padding: 8px 15px;
+            font-family: var(--font-terminal);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            text-transform: uppercase;
+            box-shadow: 0 0 2px var(--color-amber);
+        }
+
+        button:hover {
+            background: var(--color-amber);
+            color: var(--color-bg);
+            box-shadow: 0 0 10px var(--color-amber);
+        }
+
+        button.active {
+            background: #ff3300;
+            color: #fff;
+            border-color: #ff3300;
+            box-shadow: 0 0 10px #ff3300;
+        }
+
+        canvas {
+            width: 100%;
+            height: 120px;
+            background: #0d0d11;
+            border: 1px solid #222;
+            margin-top: 10px;
+        }
+
+        .radio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        #boot-screen {
+            position: fixed;
+            top:0; left:0; width:100vw; height:100vh;
+            background: var(--color-bg);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #boot-text {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            max-width: 600px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="boot-screen">
+        <div id="boot-text">
+DEPARTAMENTO DE DEFESA - SUB-REDE ACÚSTICA ESPER
+DIRETRIZ NOIR SEGRETO // DESCRIPTOGRAFANDO ATIVOS...
+--------------------------------------------------
+AVISO: Este terminal é capaz de emitir frequências abaixo do limiar auditivo humano (<20Hz). Em sistemas de som amplificados ou subwoofers potentes, isso gerará vibrações mecânicas intensas. Use com cautela.
+        </div>
+        <button id="btn-init" style="width: auto; padding: 15px 30px;">INICIALIZAR RECEPTOR</button>
+    </div>
+
+    <header>
+        <h1>BUREAU OF ACOUSTIC RECONNAISSANCE</h1>
+        <p>SISTEMA TÁTICO DE INTERCEPTAÇÃO DE BAIXA FREQUÊNCIA & SINAIS ELETROMAGNÉTICOS</p>
+    </header>
+
+    <div class="dashboard">
+
+        <div class="panel">
+            <h2>1. Receptor de Infrassom (Mic)</h2>
+            <div class="control-group">
+                <p>Status do Espectro: <span id="infra-detect-status" class="status-value">INATIVO</span></p>
+                <label>Foco de Varredura: < 50 Hz (Sub-Acoustic)</label>
+            </div>
+            <button id="btn-mic">Ativar Varredura Microfônica</button>
+            <canvas id="canvas-detector"></canvas>
+        </div>
+
+        <div class="panel">
+            <h2>2. Emissor Sub-Acústico</h2>
+            <div class="control-group">
+                <label>Frequência Crítica: <span id="lbl-infra-freq" class="status-value">20</span> Hz</label>
+                <input type="range" id="rng-infra-freq" min="1" max="200" value="20">
+            </div>
+            <div class="control-group">
+                <label>Volume/Amplitude: <span id="lbl-infra-vol" class="status-value">50</span>%</label>
+                <input type="range" id="rng-infra-vol" min="0" max="100" value="50">
+            </div>
+            <button id="btn-gen-infra">Ligar Emissor</button>
+        </div>
+
+        <div class="panel">
+            <h2>3. Gerador de Contra-Inteligência</h2>
+            <div class="control-group">
+                <label>Filtro de Ruído Tático</label>
+                <p style="font-size:0.75rem; color: var(--color-amber-dim); margin-bottom: 10px;">Mascaramento de microfones locais e contra-espionagem.</p>
+            </div>
+            <div class="radio-grid">
+                <button id="btn-white">Ruído Branco</button>
+                <button id="btn-brown">Ruído Marrom</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>4. Wi-Fi Radar (CSI Sensing)</h2>
+            <div class="control-group">
+                <p>Análise de Ondas de Rádio: <span id="wifi-status" class="status-value">VARRENDO</span></p>
+                <label>Perturbação de Ambiente Detetada: <span id="wifi-motion" class="status-value">0.0%</span></label>
+            </div>
+            <canvas id="canvas-wifi"></canvas>
+        </div>
+
+        <div class="panel">
+            <h2>5. Receptor RF (AM / FM Intercept)</h2>
+            <div class="control-group">
+                <label>Sintonia de Banda: <span id="lbl-radio-freq" class="status-value">94.3</span> MHz</label>
+                <input type="range" id="rng-radio-freq" min="530" max="1600" value="943" step="1">
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-top:2px; color: var(--color-amber-dim);">
+                    <span>AM 530 kHz</span>
+                    <span>FM 108 MHz</span>
+                </div>
+            </div>
+            <button id="btn-radio">Ligar Sintonizador</button>
+            <p id="radio-static-info" style="font-size:0.7rem; margin-top:10px; color:var(--color-amber-dim); font-style:italic;">Gire o dial para buscar transmissões ocultas...</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Contexto de Áudio e Variáveis Globais
+        let audioCtx;
+        
+        // Módulos de Áudio
+        let micStream, analyser, dataArray;
+        let infraOsc, infraGain;
+        let whiteNoiseNode, brownNoiseNode;
+        let radioStaticNode, radioSignalNode, radioGain;
+
+        // Estados
+        let isMicOn = false;
+        let isInfraOn = false;
+        let isWhiteOn = false;
+        let isBrownOn = false;
+        let isRadioOn = false;
+
+        // Elementos DOM
+        const bootScreen = document.getElementById('boot-screen');
+        const btnInit = document.getElementById('btn-init');
+        
+        // 1. Inicialização por interação do usuário (Regra Crítica dos Navegadores)
+        btnInit.addEventListener('click', () => {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            bootScreen.style.display = 'none';
+            setupWifiRadar();
+        });
+
+        // ==========================================
+        // 1. RECEPTOR / DETECTOR DE INFRASSOM (MIC)
+        // ==========================================
+        const btnMic = document.getElementById('btn-mic');
+        const canvasDet = document.getElementById('canvas-detector');
+        const ctxDet = canvasDet.getContext('2d');
+        const infraStatus = document.getElementById('infra-detect-status');
+
+        btnMic.addEventListener('click', async () => {
+            if (!audioCtx) return;
+            if (!isMicOn) {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+                    const source = audioCtx.createMediaStreamSource(micStream);
+                    analyser = audioCtx.createAnalyser();
+                    
+                    // Tamanho alto do FFT para obter melhor resolução nas baixas frequências
+                    analyser.fftSize = 4096; 
+                    source.connect(analyser);
+                    
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    isMicOn = true;
+                    btnMic.textContent = "Desligar Varredura";
+                    btnMic.classList.add('active');
+                    infraStatus.textContent = "ESCUTANDO";
+                    drawDetector();
+                } catch (err) {
+                    alert("Falha ao acessar o hardware de captação: " + err);
+                }
+            } else {
+                micStream.getTracks().forEach(track => track.stop());
+                isMicOn = false;
+                btnMic.textContent = "Ativar Varredura Microfônica";
+                btnMic.classList.remove('active');
+                infraStatus.textContent = "INATIVO";
+            }
+        });
+
+        function drawDetector() {
+            if (!isMicOn) return;
+            requestAnimationFrame(drawDetector);
+
+            analyser.getByteFrequencyData(dataArray);
+            ctxDet.clearRect(0, 0, canvasDet.width, canvasDet.height);
+
+            // Resolução matemática de frequência por Bin: SampleRate / FFT_Size
+            // Ex: 44100 / 4096 = ~10.7 Hz por barra. 
+            // Queremos focar no infrassom e sub-graves (<50Hz), ou seja, as primeiras 6-8 barras.
+            let barWidth = (canvasDet.width / 12);
+            let barHeight;
+            let x = 0;
+
+            // Desenhar grid de fundo estilo osciloscópio
+            ctxDet.strokeStyle = "rgba(255, 176, 0, 0.1)";
+            ctxDet.lineWidth = 1;
+            for(let i=0; i<canvasDet.width; i+=40) {
+                ctxDet.beginPath(); ctxDet.moveTo(i, 0); ctxDet.lineTo(i, canvasDet.height); ctxDet.stroke();
+            }
+            for(let j=0; j<canvasDet.height; j+=30) {
+                ctxDet.beginPath(); ctxDet.moveTo(0, j); ctxDet.lineTo(canvasDet.width, j); ctxDet.stroke();
+            }
+
+            // Renderizar apenas bins de frequência ultrabaixa
+            for (let i = 0; i < 12; i++) {
+                barHeight = dataArray[i] * 0.7;
+                
+                // Cor muda se detectar energia muito forte no infrassom real
+                ctxDet.fillStyle = dataArray[i] > 180 ? "#ff3300" : "rgba(255,176,0,0.85)";
+                ctxDet.fillRect(x, canvasDet.height - barHeight, barWidth - 2, barHeight);
+
+                // Texto da frequência aproximada do bin
+                ctxDet.fillStyle = "rgba(255,176,0,0.4)";
+                ctxDet.font = "8px Courier New";
+                ctxDet.fillText(Math.round(i * (audioCtx.sampleRate / analyser.fftSize)) + "Hz", x + 2, canvasDet.height - 5);
+
+                x += barWidth;
+            }
+        }
+
+        // ==========================================
+        // 2. EMISSOR / GERADOR DE INFRASSOM
+        // ==========================================
+        const btnGenInfra = document.getElementById('btn-gen-infra');
+        const rngInfraFreq = document.getElementById('rng-infra-freq');
+        const rngInfraVol = document.getElementById('rng-infra-vol');
+        const lblInfraFreq = document.getElementById('lbl-infra-freq');
+        const lblInfraVol = document.getElementById('lbl-infra-vol');
+
+        rngInfraFreq.addEventListener('input', () => {
+            lblInfraFreq.textContent = rngInfraFreq.value;
+            if (infraOsc) infraOsc.frequency.setValueAtTime(rngInfraFreq.value, audioCtx.currentTime);
+        });
+
+        rngInfraVol.addEventListener('input', () => {
+            lblInfraVol.textContent = rngInfraVol.value;
+            if (infraGain) infraGain.gain.setValueAtTime(rngInfraVol.value / 100, audioCtx.currentTime);
+        });
+
+        btnGenInfra.addEventListener('click', () => {
+            if (!audioCtx) return;
+            if (!isInfraOn) {
+                infraOsc = audioCtx.createOscillator();
+                infraGain = audioCtx.createGain();
+
+                infraOsc.type = 'sine'; // Ondas puras para máxima eficiência física em subwoofers
+                infraOsc.frequency.setValueAtTime(rngInfraFreq.value, audioCtx.currentTime);
+                
+                infraGain.gain.setValueAtTime(rngInfraVol.value / 100, audioCtx.currentTime);
+
+                infraOsc.connect(infraGain);
+                infraGain.connect(audioCtx.destination);
+
+                infraOsc.start();
+                isInfraOn = true;
+                btnGenInfra.textContent = "Parar Emissor";
+                btnGenInfra.classList.add('active');
+            } else {
+                infraOsc.stop();
+                infraOsc.disconnect();
+                infraGain.disconnect();
+                isInfraOn = false;
+                btnGenInfra.textContent = "Ligar Emissor";
+                btnGenInfra.classList.remove('active');
+            }
+        });
+
+        // ==========================================
+        // 3. GERADORES DE RUÍDO (WHITE & BROWN NOISE)
+        // ==========================================
+        const btnWhite = document.getElementById('btn-white');
+        const btnBrown = document.getElementById('btn-brown');
+
+        // Função utilitária para criar buffers de ruído em tempo de execução
+        function createNoiseBuffer(type) {
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            
+            let lastOut = 0.0; // Usado para o filtro do ruído marrom
+            
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                if (type === 'white') {
+                    output[i] = white;
+                } else if (type === 'brown') {
+                    // Algoritmo de Brown (Random Walk / Filtro passa-baixas acentuado)
+                    output[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = output[i];
+                    output[i] *= 3.5; // Compensação de ganho para o ruído marrom
+                }
+            }
+            return noiseBuffer;
+        }
+
+        btnWhite.addEventListener('click', () => {
+            if(!audioCtx) return;
+            if(!isWhiteOn) {
+                if(isBrownOn) btnBrown.click();
+                whiteNoiseNode = audioCtx.createBufferSource();
+                whiteNoiseNode.buffer = createNoiseBuffer('white');
+                whiteNoiseNode.loop = true;
+                
+                let gain = audioCtx.createGain();
+                gain.gain.value = 0.15; // Evitar estourar ouvidos
+                whiteNoiseNode.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                whiteNoiseNode.start();
+                isWhiteOn = true;
+                btnWhite.classList.add('active');
+            } else {
+                whiteNoiseNode.stop();
+                isWhiteOn = false;
+                btnWhite.classList.remove('active');
+            }
+        });
+
+        btnBrown.addEventListener('click', () => {
+            if(!audioCtx) return;
+            if(!isBrownOn) {
+                if(isWhiteOn) btnWhite.click();
+                brownNoiseNode = audioCtx.createBufferSource();
+                brownNoiseNode.buffer = createNoiseBuffer('brown');
+                brownNoiseNode.loop = true;
+                
+                let gain = audioCtx.createGain();
+                gain.gain.value = 0.4; 
+                brownNoiseNode.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                brownNoiseNode.start();
+                isBrownOn = true;
+                btnBrown.classList.add('active');
+            } else {
+                brownNoiseNode.stop();
+                isBrownOn = false;
+                btnBrown.classList.remove('active');
+            }
+        });
+
+        // ==========================================
+        // 4. WI-FI MOTION SENSING (SIMULADOR DE SONAR)
+        // ==========================================
+        const canvasWifi = document.getElementById('canvas-wifi');
+        const ctxWifi = canvasWifi.getContext('2d');
+        const lblMotion = document.getElementById('wifi-motion');
+        let radarAngle = 0;
+        let pings = [];
+
+        function setupWifiRadar() {
+            setInterval(() => {
+                // Simulação matemática de flutuação de pacotes CSI (Channel State Information)
+                // Se o microfone estiver ligado, usamos uma fração dele para gerar dados semirreais de perturbação!
+                let noiseFactor = 0;
+                if (isMicOn && dataArray) {
+                    noiseFactor = dataArray.reduce((a,b)=>a+b, 0) / dataArray.length / 30;
+                }
+                
+                let motion = (Math.random() * 8) + (noiseFactor * 15);
+                if (motion > 100) motion = 100;
+                lblMotion.textContent = motion.toFixed(1) + "%";
+
+                // Registra anomalias no radar se a perturbação for alta
+                if(motion > 25 && Math.random() > 0.4) {
+                    pings.push({
+                        x: Math.random() * canvasWifi.width,
+                        y: Math.random() * canvasWifi.height,
+                        alpha: 1.0
+                    });
+                }
+            }, 400);
+            drawWifiRadar();
+        }
+
+        function drawWifiRadar() {
+            requestAnimationFrame(drawWifiRadar);
+            ctxWifi.fillStyle = "rgba(13, 13, 17, 0.1)"; // Efeito de rastro
+            ctxWifi.fillRect(0, 0, canvasWifi.width, canvasWifi.height);
+
+            // Desenhar círculos concêntricos do radar de ondas de rádio
+            ctxWifi.strokeStyle = "rgba(255, 176, 0, 0.15)";
+            let cx = canvasWifi.width / 2;
+            let cy = canvasWifi.height / 2;
+            for(let r = 20; r < canvasWifi.width; r += 30) {
+                ctxWifi.beginPath();
+                ctxWifi.arc(cx, cy, r, 0, Math.PI * 2);
+                ctxWifi.stroke();
+            }
+
+            // Linha de Varredura do radar
+            radarAngle += 0.02;
+            let scanX = cx + Math.cos(radarAngle) * cx * 1.5;
+            let scanY = cy + Math.sin(radarAngle) * cy * 1.5;
+            ctxWifi.strokeStyle = "rgba(255, 176, 0, 0.4)";
+            ctxWifi.lineWidth = 2;
+            ctxWifi.beginPath();
+            ctxWifi.moveTo(cx, cy);
+            ctxWifi.lineTo(scanX, scanY);
+            ctxWifi.stroke();
+
+            // Renderizar as perturbações/fantasmas detetados no espaço
+            pings.forEach((p, idx) => {
+                ctxWifi.fillStyle = `rgba(255, 51, 0, ${p.alpha})`;
+                ctxWifi.beginPath();
+                ctxWifi.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctxWifi.fill();
+                p.alpha -= 0.01; // Fade out
+                if(p.alpha <= 0) pings.splice(idx, 1);
+            });
+        }
+
+        // ==========================================
+        // 5. INTERCEPTADOR DE RÁDIO AM/FM + ESTAÇÃO DE NÚMEROS
+        // ==========================================
+        const btnRadio = document.getElementById('btn-radio');
+        const rngRadio = document.getElementById('rng-radio-freq');
+        const lblRadio = document.getElementById('lbl-radio-freq');
+        const radioInfo = document.getElementById('radio-static-info');
+
+        rngRadio.addEventListener('input', () => {
+            let val = rngRadio.value;
+            let displayFreq = val > 1080 ? (val/10).toFixed(1) + " MHz (FM)" : val + " kHz (AM)";
+            lblRadio.textContent = displayFreq;
+            updateRadioAudio();
+        });
+
+        function updateRadioAudio() {
+            if (!isRadioOn || !audioCtx) return;
+
+            let freq = parseInt(rngRadio.value);
+            
+            // Simulação de Estações Secretas baseadas em frequências específicas
+            // Frequência de espionagem 1: Estação de Números Russa (AM 900)
+            // Frequência de espionagem 2: Baliza de Dados Criptografados (FM 102.0 / 1020)
+            let distToStation1 = Math.abs(freq - 900);
+            let distToStation2 = Math.abs(freq - 1020);
+
+            if (distToStation1 < 15) {
+                // Sintonizando Estação de Números 1
+                let volumeSinal = 1.0 - (distToStation1 / 15);
+                radioSignalNode.frequency.setValueAtTime(440 + (Math.sin(audioCtx.currentTime * 5) * 10), audioCtx.currentTime); // Tom bizarro de modulação
+                radioGain.gain.setValueAtTime(volumeSinal * 0.3, audioCtx.currentTime);
+                radioStaticNode.gain.setValueAtTime((1.0 - volumeSinal) * 0.2, audioCtx.currentTime);
+                radioInfo.textContent = "INTERCEPTANDO: TRANSMISSÃO 'UVB-76 / THE BUZZER' DETECTADA.";
+                radioInfo.style.color = "#ff3300";
+            } 
+            else if (distToStation2 < 20) {
+                // Sintonizando Estação de Números 2
+                let volumeSinal = 1.0 - (distToStation2 / 20);
+                // Gera beeps rápidos tipo telemetria militar
+                let beep = Math.sin(audioCtx.currentTime * 50) > 0 ? 880 : 0;
+                radioSignalNode.frequency.setValueAtTime(beep, audioCtx.currentTime);
+                radioGain.gain.setValueAtTime(volumeSinal * 0.2, audioCtx.currentTime);
+                radioStaticNode.gain.setValueAtTime((1.0 - volumeSinal) * 0.2, audioCtx.currentTime);
+                radioInfo.textContent = "INTERCEPTANDO: TELEMETRIA SECRETA MILITAR TRANSMITINDO...";
+                radioInfo.style.color = "#ff3300";
+            }
+            else {
+                // Apenas estática de rádio pura (White Noise)
+                radioGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                radioStaticNode.gain.setValueAtTime(0.25, audioCtx.currentTime); // Ruído estático alto fora da estação
+                radioInfo.textContent = "Apenas estática atmosférica. Continue varrendo o dial...";
+                radioInfo.style.color = "var(--color-amber-dim)";
+            }
+        }
+
+        btnRadio.addEventListener('click', () => {
+            if (!audioCtx) return;
+            if (!isRadioOn) {
+                // Cria o gerador de estática (ruído) dedicado para o rádio
+                let bufferSize = audioCtx.sampleRate * 2;
+                let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                let data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                
+                let staticSrc = audioCtx.createBufferSource();
+                staticSrc.buffer = buffer;
+                staticSrc.loop = true;
+                
+                radioStaticNode = audioCtx.createGain();
+                staticSrc.connect(radioStaticNode);
+                radioStaticNode.connect(audioCtx.destination);
+                staticSrc.start();
+
+                // Cria o oscilador de sinal tático (simula a voz/portadora)
+                radioSignalNode = audioCtx.createOscillator();
+                radioGain = audioCtx.createGain();
+                radioSignalNode.type = 'sawtooth';
+                radioSignalNode.connect(radioGain);
+                radioGain.connect(audioCtx.destination);
+                radioSignalNode.start();
+
+                isRadioOn = true;
+                btnRadio.textContent = "Desligar Receptor RF";
+                btnRadio.classList.add('active');
+                updateRadioAudio();
+            } else {
+                location.reload(); // Forma brutal e limpa de resetar todas as conexões complexas de áudio de uma vez
+            }
+        });
+
+    </script>
+</body>
+</html>

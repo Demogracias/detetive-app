@@ -1,0 +1,13 @@
+node_modules/
+*.apk
+*.jks
+*.keystore
+backups/
+backup/
+.env
+dist/
+build/
+android/.gradle/
+android/build/
+android/app/build/
+*.log

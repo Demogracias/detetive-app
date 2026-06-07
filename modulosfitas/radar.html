@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar de Intercepção Cinética - Agência Sombra</title>
+    <style>
+        :root {
+            --bg-dark: #050608;
+            --panel-bg: #0c0e12;
+            --radar-green: #00ff66;
+            --radar-green-dim: #00441b;
+            --text-main: #b5c2b7;
+            --border: #1a221d;
+            --font-spy: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-spy);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: linear-gradient(rgba(18, 24, 18, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
+            background-size: 100% 4px;
+        }
+
+        .header {
+            text-align: center;
+            width: 100%;
+            max-width: 1100px;
+            border-bottom: 1px double var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 1.4em;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin: 0;
+            text-shadow: 0 0 8px var(--radar-green-dim);
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .wrapper { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #ffffff;
+            border-left: 3px solid var(--radar-green);
+            padding-left: 8px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+        }
+
+        video {
+            display: none; /* Mantido oculto; processamos e desenhamos direto no canvas */
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Efeito espelho para facilitar o alinhamento tático */
+        }
+
+        /* --- TELEMETRIA & CONTROLES --- */
+        .telemetry-box {
+            background-color: #020304;
+            border: 1px solid var(--border);
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .huge-display {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: var(--radar-green);
+            text-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
+            margin: 5px 0;
+        }
+
+        .label-sub {
+            font-size: 0.75em;
+            color: #55665a;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            color: #7d8c80;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            background-color: #000;
+            border: 1px solid var(--border);
+            color: var(--radar-green);
+            padding: 10px;
+            font-family: var(--font-spy);
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+
+        button {
+            background: transparent;
+            color: var(--radar-green);
+            border: 1px solid var(--radar-green);
+            padding: 12px;
+            font-family: var(--font-spy);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--radar-green);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
+        }
+
+        .terminal-log {
+            background-color: #000;
+            border: 1px solid #111a14;
+            padding: 10px;
+            height: 110px;
+            overflow-y: auto;
+            font-size: 0.75em;
+            color: #4d6656;
+        }
+        .terminal-log p { margin: 3px 0; }
+        .alert-log { color: #ff3333; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Varredura Fotônica // Interceptador de Velocidade</h1>
+    </div>
+
+    <div class="wrapper">
+        
+        <div class="panel">
+            <h2>I. Feed de Rastreamento Óptico</h2>
+            <div class="video-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="radarCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>II. Telemetria de Vetores</h2>
+            
+            <div class="telemetry-box">
+                <div class="label-sub">Velocidade Estimada</div>
+                <div class="huge-display" id="speed-view">0.0 km/h</div>
+            </div>
+
+            <div class="telemetry-box" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 5px;">
+                <div>
+                    <div class="label-sub">Aceleração</div>
+                    <div style="font-size: 1.1em; color: #fff; font-weight: bold;" id="acc-view">0.0 m/s²</div>
+                </div>
+                <div>
+                    <div class="label-sub">Pico Registrado</div>
+                    <div style="font-size: 1.1em; color: #fff; font-weight: bold;" id="peak-view">0.0 km/h</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Largura Real do Campo Visual (Metros)</label>
+                <input type="number" id="field-width" value="3.0" step="0.5">
+                <span style="font-size:0.65em; color:#55665a; display:block; margin-top:3px;">* Calibre medindo a distância horizontal que a câmera consegue enxergar na zona do alvo.</span>
+            </div>
+
+            <button id="btn-init" onclick="startRadar()">Ativar Grade de Captura</button>
+            
+            <label style="margin-top: 15px;">Logs de Varredura</label>
+            <div class="terminal-log" id="term-log">
+                <p>> Sistema em prontidão. Aguardando ativação óptica...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('radarCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let prevFrameData = null;
+        let lastTime = performance.now();
+        let lastX = null;
+        let lastVelocity = 0;
+        let peakSpeed = 0;
+
+        // Filtros de suavização (Média Móvel para mitigar ruído de pixel)
+        let speedHistory = [];
+
+        function printLog(msg, isAlert = false) {
+            const term = document.getElementById('term-log');
+            const p = document.createElement('p');
+            if(isAlert) p.className = 'alert-log';
+            p.innerText = `[${new Date().toTimeString().split(' ')[0]}] > ${msg}`;
+            term.appendChild(p);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        async function startRadar() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480, frameRate: { ideal: 30 } }, 
+                    audio: false 
+                });
+                video.srcObject = stream;
+                document.getElementById('btn-init').disabled = true;
+                printLog("Acesso à câmera concedido. Inicializando matriz de pixels.");
+                
+                video.onloadedmetadata = () => {
+                    canvas.width = 640;
+                    canvas.height = 480;
+                    requestAnimationFrame(processRadarFrame);
+                };
+            } catch (err) {
+                printLog("Falha ao invocar sensor óptico: " + err.message, true);
+            }
+        }
+
+        function processRadarFrame() {
+            if (video.paused || video.ended) return;
+
+            // Desenha o frame atual do vídeo no canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Captura os dados de imagem atuais
+            const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = currentFrame.data;
+
+            let totalX = 0;
+            let motionPixelCount = 0;
+
+            if (prevFrameData) {
+                // Compara pixel por pixel (Avança de 4 em 4 [R,G,B,A] e salta linhas/colunas para performance)
+                const sampleStep = 6; 
+                for (let y = 40; y < canvas.height - 40; y += sampleStep) {
+                    for (let x = 40; x < canvas.width - 40; x += sampleStep) {
+                        const index = (y * canvas.width + x) * 4;
+
+                        // Diferença absoluta de brilho nos canais principais (Red e Green)
+                        const rDiff = Math.abs(pixels[index] - prevFrameData[index]);
+                        const gDiff = Math.abs(pixels[index+1] - prevFrameData[index+1]);
+
+                        // Limiar de detecção de movimento
+                        if (rDiff > 35 && gDiff > 35) {
+                            totalX += x;
+                            motionPixelCount++;
+                            
+                            // Pinta os pixels em movimento na tela para efeito visual de radar (Verde neon)
+                            pixels[index] = 0;
+                            pixels[index+1] = 255;
+                            pixels[index+2] = 100;
+                        }
+                    }
+                }
+            }
+
+            // Salva o frame atual para a próxima comparação
+            prevFrameData = pixels;
+
+            // Se detectarmos uma massa significativa de movimento (evita falsos positivos de ruído da lente)
+            if (motionPixelCount > 35) {
+                const currentX = totalX / motionPixelCount; // Centro do movimento
+                const currentTime = performance.now();
+                const deltaTime = (currentTime - lastTime) / 1000; // Segundos
+
+                if (lastX !== null && deltaTime > 0.01) {
+                    // Cálculo de distância baseada no input do usuário
+                    const fieldWidthMeters = parseFloat(document.getElementById('field-width').value) || 3.0;
+                    
+                    // Translação de deslocamento de pixels para metros
+                    const deltaXPixels = Math.abs(currentX - lastX);
+                    const distanceMoved = (deltaXPixels / canvas.width) * fieldWidthMeters;
+
+                    // Cálculo da Velocidade (m/s)
+                    let velocityMPS = distanceMoved / deltaTime;
+                    
+                    // Converte para Km/h
+                    let velocityKMH = velocityMPS * 3.6;
+
+                    // Aplica filtro de suavização báscia (Média Móvel) para estabilizar a leitura
+                    speedHistory.push(velocityKMH);
+                    if(speedHistory.length > 5) speedHistory.shift();
+                    let smoothSpeed = speedHistory.reduce((a,b)=>a+b, 0) / speedHistory.length;
+
+                    // Cálculo da Aceleração (dv / dt) em m/s²
+                    let acceleration = (velocityMPS - (lastVelocity / 3.6)) / deltaTime;
+
+                    // Atualiza a visualização se a velocidade passar de um limite mínimo parado
+                    if (smoothSpeed > 1.5) {
+                        document.getElementById('speed-view').innerText = `${smoothSpeed.toFixed(1)} km/h`;
+                        document.getElementById('acc-view').innerText = `${acceleration.toFixed(1)} m/s²`;
+                        
+                        if (smoothSpeed > peakSpeed) {
+                            peakSpeed = smoothSpeed;
+                            document.getElementById('peak-view').innerText = `${peakSpeed.toFixed(1)} km/h`;
+                            printLog(`Novo pico interceptado: ${peakSpeed.toFixed(1)} km/h`);
+                        }
+                    }
+                    lastVelocity = smoothSpeed;
+                }
+
+                lastX = currentX;
+                lastTime = currentTime;
+
+                // Desenha uma linha de mira vertical no centro do objeto interceptado
+                ctx.putImageData(currentFrame, 0, 0);
+                ctx.strokeStyle = '#00ff66';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(currentX, 0);
+                ctx.lineTo(currentX, canvas.height);
+                ctx.stroke();
+            } else {
+                // Desacelera os mostradores se o movimento sumir da tela
+                lastX = null;
+                document.getElementById('speed-view').innerText = "0.0 km/h";
+                document.getElementById('acc-view').innerText = "0.0 m/s²";
+            }
+
+            // Desenha elementos estéticos de HUD tático por cima do canvas
+            drawRadarOverlay();
+
+            requestAnimationFrame(processRadarFrame);
+        }
+
+        function drawRadarOverlay() {
+            // Retículo central
+            ctx.strokeStyle = "rgba(0, 255, 102, 0.2)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(canvas.width/2, canvas.height/2, 80, 0, 2 * Math.PI);
+            ctx.arc(canvas.width/2, canvas.height/2, 160, 0, 2 * Math.PI);
+            ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+
+            // Moldura angular
+            ctx.fillStyle = varPriorities = "rgba(0,255,102,0.7)";
+            ctx.fillRect(20, 20, 15, 2); ctx.fillRect(20, 20, 2, 15);
+            ctx.fillRect(canvas.width-35, 20, 15, 2); ctx.fillRect(canvas.width-20, 20, 2, 15);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo ATLAS-PCG // Agência Sombra</title>
+    <style>
+        :root {
+            --bg-black: #040507;
+            --panel-bg: #0a0c10;
+            --terminal-green: #33ff33;
+            --terminal-dim: #004d00;
+            --text-gray: #8ab4f8;
+            --border-color: #161b22;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            color: #c9d1d9;
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            width: 100%;
+            max-width: 1100px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.2em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #ffffff;
+            margin: 0;
+            text-shadow: 0 0 5px var(--terminal-dim);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+
+        h2 {
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--terminal-green);
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-left: 2px solid var(--terminal-green);
+            padding-left: 6px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.7em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            color: #8b949e;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            color: var(--terminal-green);
+            padding: 10px;
+            font-family: var(--font-mono);
+            box-sizing: border-box;
+            font-size: 1em;
+            text-transform: uppercase;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--terminal-green);
+        }
+
+        button {
+            width: 100%;
+            background: transparent;
+            color: var(--terminal-green);
+            border: 1px solid var(--terminal-green);
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--terminal-green);
+            color: #000;
+            box-shadow: 0 0 10px rgba(51, 255, 51, 0.3);
+        }
+
+        /* --- DISPLAY DE DADOS --- */
+        .report-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .report-grid { grid-template-columns: 1fr; }
+        }
+
+        .data-block {
+            background-color: #020203;
+            border: 1px solid #10141a;
+            padding: 12px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+
+        .data-table th, .data-table td {
+            text-align: left;
+            padding: 6px 4px;
+            border-bottom: 1px solid #10141a;
+        }
+
+        .data-table th { color: #58a6ff; font-weight: normal; }
+
+        .canvas-container {
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            margin-top: 15px;
+        }
+
+        canvas {
+            background-color: #020203;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>SISTEMA PCG // Gerador de Matrizes Exobiológicas</h1>
+    </div>
+
+    <div class="container">
+        
+        <div class="panel">
+            <h2>I. Vetor de Ignição</h2>
+            <div class="input-group">
+                <label>Assinatura Seed (Código do Planeta)</label>
+                <input type="text" id="seed-input" value="NEXUS-9">
+            </div>
+            <button onclick="generateContent()">Descriptografar Coordenada</button>
+            
+            <p style="font-size: 0.65em; color: #484f58; margin-top: 20px; line-height: 1.4;">
+                * O algoritmo usa cripto-hashing determinístico. Nenhuma propriedade estrutural gerada é salva em banco de dados; a física reconstrói o registro molecular sob demanda usando a Semente informada.
+            </p>
+        </div>
+
+        <div class="panel">
+            <h2>II. Relatório de Campo Analítico</h2>
+            
+            <div class="report-grid">
+                
+                <div class="data-block">
+                    <span style="font-size:0.75em; color:#fff; font-weight:bold;">Métrica Macroscópica</span>
+                    <table class="data-table">
+                        <tr><th>Gravidade</th><td id="out-grav">--</td></tr>
+                        <tr><th>Temperatura Base</th><td id="out-temp">--</td></tr>
+                        <tr><th>Pressão Atm.</th><td id="out-press">--</td></tr>
+                        <tr><th>Solvente Nativo</th><td id="out-solvent" style="color:var(--terminal-green)">--</td></tr>
+                    </table>
+                </div>
+
+                <div class="data-block">
+                    <span style="font-size:0.75em; color:#fff; font-weight:bold;">Análise de Matriz Bioquímica</span>
+                    <table class="data-table">
+                        <tr><th>Base Molecular</th><td id="out-base">--</td></tr>
+                        <tr><th>Ligação Dominante</th><td id="out-bond">--</td></tr>
+                        <tr><th>Estabilidade (ΔG)</th><td id="out-gibbs">--</td></tr>
+                        <tr><th>Toxicidade Humana</th><td id="out-tox">--</td></tr>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="structureCanvas" width="600" height="220"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- MOTOR DE NÚMEROS PSEUDOALEATÓRIOS (PRNG) DETERMINÍSTICO ---
+        // Algoritmo LCG para garantir que a mesma Seed gere sempre os mesmos dados exatos
+        class SeededRandom {
+            constructor(seedStr) {
+                this.seed = this.hashSeed(seedStr);
+            }
+            // Converte string para hash numérico de 32-bit
+            hashSeed(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return Math.abs(hash);
+            }
+            // Retorna um valor entre 0.0 e 1.0
+            next() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+            // Retorna um valor dentro de um intervalo
+            range(min, max) {
+                return min + this.next() * (max - min);
+            }
+            // Escolhe um elemento de um array
+            choice(array) {
+                const index = Math.floor(this.next() * array.length);
+                return array[index];
+            }
+        }
+
+        function generateContent() {
+            const seedText = document.getElementById('seed-input').value.trim().toUpperCase();
+            if(!seedText) return;
+
+            const rng = new SeededRandom(seedText);
+
+            // 1. GERANDO REGRAS FÍSICAS VIA FÓRMULAS E SEED
+            const gravity = rng.range(0.2, 3.8); // em Gs
+            const temperatureK = rng.range(80, 550); // Kelvin
+            const temperatureC = temperatureK - 273.15;
+            
+            // Simulação da Equação Barométrica Procedural para determinar a pressão na superfície
+            const molarMassBase = rng.range(16, 44); // Massa molar dos gases dominantes (CH4 a CO2)
+            const scaleHeightFactor = 0.00012;
+            const pressureAtm = Math.exp(molarMassBase * gravity * scaleHeightFactor * (300 / temperatureK)) * rng.range(0.1, 10);
+
+            // Seleção de Solventes baseado na temperatura física gerada
+            let solvent = "Nenhum (Aridez Absoluta)";
+            if (temperatureC >= -182 && temperatureC <= -161) solvent = "Metano Líquido (CH4)";
+            else if (temperatureC >= -77 && temperatureC <= -33) solvent = "Amônia Líquida (NH3)";
+            else if (temperatureC >= 0 && temperatureC <= 100) solvent = "Água (H2O)";
+            else if (temperatureC > 31 && pressureAtm > 72) solvent = "CO2 Supercrítico"; // ← LINHA CORRIGIDA
+
+            // 2. GERANDO ESTRUTURA BIOQUÍMICA PROCEDURAL
+            // Escolha da espinha dorsal molecular baseada na semente
+            const bioBases = [
+                { nome: "Base de Carbono (Convencional)", elemento: "C", ligacao: "Peptídica / Alifática" },
+                { nome: "Base de Silício (Exótica)", elemento: "Si", ligacao: "Silano / Silicato (Si-O-Si)" },
+                { nome: "Híbrida de Boro-Nitrogênio", elemento: "B-N", ligacao: "Borazina Aromática" },
+                { nome: "Fluorocarbono Sintético", elemento: "C-F", ligacao: "Fluoropolímero Estável" }
+            ];
+            const bioData = rng.choice(bioBases);
+
+            // Cálculo matemático de Estabilidade Termodinâmica (Energia Livre de Gibbs)
+            const deltaH = rng.range(-400, -100); 
+            const deltaS = rng.range(0.1, 0.5);
+            const deltaG = deltaH + (temperatureK * deltaS);
+
+            let toxicity = "Extrema (Destruição Celular)";
+            if (bioData.elemento === "C" && solvent.includes("H2O") && temperatureC > 0 && temperatureC < 50) {
+                toxicity = "Nula (Zona Habitável)";
+            } else if (temperatureC > -20 && temperatureC < 80) {
+                toxicity = "Moderada (Exige Traje de Pressão)";
+            }
+
+            // 3. ATUALIZANDO EXIBIÇÃO DE DADOS TEXTUAIS
+            document.getElementById('out-grav').innerText = `${gravity.toFixed(2)} G`;
+            document.getElementById('out-temp').innerText = `${temperatureC.toFixed(1)} °C (${temperatureK.toFixed(0)}K)`;
+            document.getElementById('out-press').innerText = `${pressureAtm.toFixed(2)} atm`;
+            document.getElementById('out-solvent').innerText = solvent;
+            
+            document.getElementById('out-base').innerText = bioData.nome;
+            document.getElementById('out-bond').innerText = bioData.ligacao;
+            document.getElementById('out-gibbs').innerText = `${deltaG.toFixed(1)} kJ/mol`;
+            document.getElementById('out-tox').innerText = toxicity;
+
+            // 4. PLOTAGEM PROCEDURAL DA ESTRUTURA MOLECULAR (CANVAS)
+            plotProceduralMolecule(rng, bioData.elemento);
+        }
+
+        function plotProceduralMolecule(rng, mainElement) {
+            const canvas = document.getElementById('structureCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenha Grid Tático de fundo
+            ctx.strokeStyle = "#0d1117";
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=30) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for(let j=0; j<canvas.height; j+=30) {
+                ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+            }
+
+            // Geração de nós (Átomos) baseada na Semente
+            const atomCount = Math.floor(rng.range(6, 14));
+            let atoms = [];
+
+            for(let i=0; i<atomCount; i++) {
+                atoms.push({
+                    x: rng.range(60, canvas.width - 60),
+                    y: rng.range(40, canvas.height - 40),
+                    element: rng.next() > 0.4 ? mainElement : rng.choice(["H", "O", "N", "F", "Cl"]),
+                    size: rng.range(10, 16)
+                });
+            }
+
+            // Desenha as ligações (Bonds) - Conecta átomos próximos de forma determinística
+            ctx.strokeStyle = "rgba(138, 180, 248, 0.4)";
+            ctx.lineWidth = 2;
+            for(let i=0; i<atoms.length; i++) {
+                for(let j=i+1; j<atoms.length; j++) {
+                    let dist = Math.hypot(atoms[i].x - atoms[j].x, atoms[i].y - atoms[j].y);
+                    if(dist < 110) { // Limiar de proximidade para ligação química
+                        ctx.beginPath();
+                        ctx.moveTo(atoms[i].x, atoms[i].y);
+                        ctx.lineTo(atoms[j].x, atoms[j].y);
+                        ctx.stroke();
+                        
+                        // Desenha ligação dupla se a semente ditar
+                        if(dist < 60) {
+                            ctx.beginPath();
+                            ctx.moveTo(atoms[i].x, atoms[i].y + 4);
+                            ctx.lineTo(atoms[j].x, atoms[j].y + 4);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // Desenha as esferas dos átomos
+            atoms.forEach(atom => {
+                ctx.fillStyle = atom.element === mainElement ? "#33ff33" : "#8ab4f8";
+                if(atom.element === "H") ctx.fillStyle = "#ffffff";
+                
+                ctx.beginPath();
+                ctx.arc(atom.x, atom.y, atom.size, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = "#000";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Rótulo de texto do Elemento
+                ctx.fillStyle = "#000";
+                ctx.font = "bold 10px Courier New";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(atom.element, atom.x, atom.y);
+            });
+        }
+
+        // Executa geração inicial automática
+        generateContent();
+        
+        // Permite gerar conteúdo apertando a tecla "Enter"
+        document.getElementById("seed-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                generateContent();
+            }
+        });
+    </script>
+</body>
+</html>

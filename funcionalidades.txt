@@ -1,0 +1,165 @@
+=== FUNCIONALIDADES — AGÊNCIA NOIR ===
+Arquivo: app.html (canonical)
+Última atualização: 06/06/2026 23:00
+
+========================================
+SISTEMA CENTRAL
+========================================
+- Login/Registo com autenticação local (localStorage)
+- Deck de fitas modulares com desbloqueio por código
+- Modo administrador (senha: ADM-SHADOW-X)
+- Tema noir com tipografia Oswald + som de máquina de escrever
+- Splash screen com fallback 5s
+- Navegação por abas com scroll horizontal
+- Persistência total via localStorage
+
+========================================
+ABAS PRINCIPAIS
+========================================
+
+1. ARQUIVO (tracker)
+   - Grade de disciplinas/tópicos com progresso (pré/teo/que/rev)
+   - Temporizador de estudo (perseguição)
+   - Quadro de investigação (mapa mental com nós/arestas)
+   - Metodologia de estudo integrada
+   - Score geral (dinheiro) + whiskey
+
+2. PROTOCOLO (protocol)
+   - Gestão de hábitos diários
+   - Checkbox condicionamento
+
+3. PERSEGUIÇÃO (persecution)
+   - Temporizador de estudo (Pomodoro noir)
+   - Disciplinas de perseguição
+   - Relógio de tocai
+
+4. INSPETOR (detective) — Sistema Anti-Virus + Central de Comando
+   - Fotografia do agente com upload (base64 localStorage)
+   - Chat com respostas estilo noir (IA generativa local com contextos)
+   - Agendar ligação telefónica (gasta 1 whiskey, toca no horário marcado)
+   - Ações rápidas via dropdown (detQuickSelect)
+   - Cadeia de Custódia (showCustodyLog) — registo cronológico de operações
+   - Auditoria de Integridade (runIntegrityAudit) — valida localStorage, JSON, matérias, calendário
+   - Evidências Contaminadas / Quarentena (showQuarantine) — scan + restaurar/eliminar itens suspeitos
+   - Scanner de Desempenho (runPerformanceScan) — RAM, FPS, processos, armazenamento
+   - Central de Escutas (toggleWiretap) — monitoriza alterações em localStorage em tempo real
+   - Mapa de Conexões (showNetworkMap) — deteta URLs não autorizadas via performance.getEntries
+   - Boletim de Ocorrências (showDailyBulletin) — estatísticas diárias do sistema
+   - Investigação de Sincronia (runSyncInvestigation) — verifica backups e consistência de dados
+   - LIMPAR CHAT (clearChat) — limpa todo o histórico da conversa
+   - RELATÓRIO DE CAMPO (exportFieldReport) — exporta histórico do chat como .txt
+   - CRIPTOGRAFAR (showCipherTool) — cifra de César (shift 1-25, codificar/descodificar, copiar pro chat)
+   - PROTOCOLO SILÊNCIO (toggleSilenceProtocol) — silencia todos os sons (persiste)
+
+5. LEGISTA (coroner)
+   - Gavetas de arquivo morto
+   - Fichas de cadáver (nome, causa, local, anotações)
+   - Estatísticas de casos
+
+6. BIBLIOTECA (reading)
+   - Leitor de livros .txt
+   - Biblioteca espiritual + arquivos selados
+   - Pagamento com whiskey para desbloquear
+
+7. ACADEMIA (academia)
+   - Banco de questões ENEM (3036 questões, 2009-2024)
+   - SRS (Spaced Repetition System) baseado em SM-2
+   - Filtros por ano, disciplina, idioma, status
+   - Missão do dia com revisões pendentes
+   - XP, nível, codinome do agente
+   - Relatório de desempenho por disciplina
+   - Simulado cronometrado
+   - Questão aleatória
+
+8. AVALIAÇÃO (correcao)
+   - Gabaritos em massa (cadastro, edição, remoção)
+   - Correção de provas (lote de alunos)
+   - Relatório estatístico (média, maior nota, distribuição)
+   - Folha de respostas configurável (N questões, A-H)
+   - Impressão da folha (@media print)
+   - Exportar CSV
+
+9. ESCALA (schedule)
+   - Calendário mensal com navegação (anos/meses)
+   - Heatmap de estudo (quadradinhos)
+   - Clique nos dias para marcar estudo
+   - Estatísticas (ofensiva, sequência, total)
+
+10. VOCABULÁRIO (vocabulary)
+    - Flashcards ENEM/inglês
+    - SRS próprio
+    - Estatísticas de domínio
+
+11. FITAS (fitas)
+    - Gestão de fitas modulares
+    - Upload de novos módulos (.html)
+    - Desbloqueio por código
+    - Atalhos de teclado Ctrl+1..9
+
+12. Demais abas: O CLUBE, DIA DE CAMPO, PERFIL,
+    IMPORTAR, FOCO, JORNADA, METODOLOGIA, O ENIGMA,
+    ARQUIVO OCULTO
+
+========================================
+TECNOLOGIAS / DEPENDÊNCIAS
+========================================
+- 100% client-side (HTML + CSS + JS puro)
+- Capacitor/Android (APK ~205 MB)
+- Chart.js (cdn ou base64 fallback)
+- Font Awesome (cdn ou base64 fallback)
+- localStorage para persistência
+- Open-Meteo API (geolocalização + clima)
+- ENEM data: enem/enem-data.js (3036 questões)
+- Dados: enem-api-main (2009-2023) + enem-extractor (2023/2024)
+
+========================================
+CHANGELOG
+========================================
+[06/06/2026] (sessão 1)
+- Corrigido encoding UTF-8 do app.html (138 bytes inválidos → 0)
+- Restaurado de backup (app_20260605_162801.html) com codificação correta
+- Merge completo: ACADEMIA + AVALIAÇÃO portados de basedetetive.html
+- Adicionados botões de navegação ACADEMIA e AVALIAÇÃO
+- Adicionado enem-data.js como script no head
+- Fix: build-android.ps1 usa app.html como índice primário
+- APK rebuildado (205.6 MB)
+- Criado este ficheiro de funcionalidades
+
+[06/06/2026] (sessão 2)
+- Encoding fix definitivo: todo ficheiro re-escrito com UTF-8 puro (0 bytes inválidos)
+- Todas as operações de escrita agora usam -Encoding UTF8
+- APK (Detetivedodia6noite.apk) extraído para recuperar 8 funcionalidades INSPETOR originais:
+  * 🗂️ showCustodyLog — Cadeia de Custódia
+  * 🔍 runIntegrityAudit — Auditoria de Integridade
+  * ☣️ showQuarantine — Evidências Contaminadas (quarentena com restaurar/eliminar)
+  * ⚡ runPerformanceScan — Scanner de Desempenho (RAM, FPS, processos, localStorage)
+  * 🎧 toggleWiretap — Central de Escutas (monitoriza alterações em localStorage)
+  * 🗺️ showNetworkMap — Mapa de Conexões (deteta URLs não autorizadas)
+  * 📋 showDailyBulletin — Boletim de Ocorrências (estatísticas diárias)
+  * 🔄 runSyncInvestigation — Investigação de Sincronia (backups, consistência)
+- Substituídas funções equivalentes que criei na sessão anterior:
+  * showChainOfCommand → substituído por showCustodyLog
+  * toggleSurveillance → substituído por toggleWiretap
+  * openEvidenceLocker / addEvidenceFromChat / removeEvidence → substituído por showQuarantine
+- Removidas variáveis obsoletas: surveillanceActive, surveillanceInterval, surveillanceStartTime, evidenceLocker
+- Removida limpeza de vigilância ao sair da aba INSPETOR (já não usada)
+- Mantidas 4 funcionalidades novas (sem equivalente no APK):
+  * 🧹 clearChat — Limpar Chat
+  * 📄 exportFieldReport — Relatório de Campo (.txt)
+  * 🔐 showCipherTool — Cifra de César (codificar/descodificar)
+  * 🔇 toggleSilenceProtocol — Protocolo Silêncio
+- Adicionada função detQuickSelect (dropdown de ações rápidas no chat)
+- Adicionadas variáveis globais: custodyLog, addCustodyLog, wiretapActive, knownNetworkUrls, quarantineItems
+- Layout detective substituído pelo original (dropdown + 5 filas de 3 botões) + meus 4 botões extra
+
+[06/06/2026] (sessão 3)
+- Corrigido bug de login: linha duplicada `deckCurrentUser = account` removida
+- Adicionado `updateAdminUIDisplay()` ao handleLogin (admin UI não atualizava ao logar)
+- Registro agora faz auto-login (cria conta + inicia sessão automaticamente)
+- Splash fallback simplificado: verifica `__deckUserLogged` antes de mostrar auth
+- removeSplash agora usa guard `__splashRemoved` para evitar execução dupla
+- initDeck com sessão restaurada agora também remove splash e mostra app-layout
+
+[05/06/2026]
+- Backup: app_20260605_162801.html (425 KB)
+- basedetetive.html com ACADEMIA e AVALIAÇÃO funcionais
