@@ -2317,7 +2317,17 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
     var _supabase = null;
     var _cloudUser = null;
     var _cloudReady = false;
-    var _cloudSyncQueue = [];
+    var _cloudSyncFailCount = 0;
+    var _cloudSyncMaxFails = 3;
+    var _cloudSyncCooldown = false;
+    var _cloudSyncCooldownTimer = null;
+    var _cloudSyncBaseInterval = 30000;
+
+    function cloudSyncResetBreaker() {
+        _cloudSyncFailCount = 0;
+        _cloudSyncCooldown = false;
+        if (_cloudSyncCooldownTimer) { clearTimeout(_cloudSyncCooldownTimer); _cloudSyncCooldownTimer = null; }
+    }
 
     function initSupabase() {
         if (typeof supabase === 'undefined') { console.warn('Supabase SDK não carregado'); return; }
@@ -2378,24 +2388,39 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
 
     function cloudSyncSave() {
         if (!_cloudReady || !_cloudUser) return;
+        if (_cloudSyncCooldown) return;
         var payload = {};
         CLOUD_SAVE_KEYS.forEach(function(k) {
             var raw = localStorage.getItem('noir_' + k);
             if (raw) payload[k] = raw;
         });
-        // Also save inline vars
         payload.chatHistory = JSON.stringify(chatHistory || []);
         payload.subjects = JSON.stringify(subjects || []);
         payload.appointments = JSON.stringify(appointments || []);
         payload.studyLogs = JSON.stringify(studyLogs || {});
         payload._whiskey = JSON.stringify({ earned: earnedWhiskeyTimer, spent: spentWhiskey });
         payload.custodyLog = JSON.stringify(custodyLog || []);
+        var snapshot = JSON.stringify(payload);
         _supabase.from('user_data').upsert({
             user_id: _cloudUser.id,
-            data: payload,
+            data: JSON.parse(snapshot),
             updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' }).then(function(res) {
-            if (res.error) console.warn('Cloud sync error:', res.error);
+            if (res.error) {
+                _cloudSyncFailCount++;
+                console.warn('Cloud sync error (' + _cloudSyncFailCount + '/' + _cloudSyncMaxFails + '):', res.error);
+                if (_cloudSyncFailCount >= _cloudSyncMaxFails) {
+                    _cloudSyncCooldown = true;
+                    var backoffMs = Math.min(60000 * Math.pow(2, _cloudSyncFailCount - _cloudSyncMaxFails), 600000);
+                    console.warn('Circuit breaker: pausing sync for ' + (backoffMs / 1000) + 's');
+                    _cloudSyncCooldownTimer = setTimeout(function() {
+                        _cloudSyncFailCount = 0;
+                        _cloudSyncCooldown = false;
+                    }, backoffMs);
+                }
+            } else {
+                if (_cloudSyncFailCount > 0) _cloudSyncFailCount = 0;
+            }
         });
     }
 
@@ -2420,8 +2445,8 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
         });
     }
 
-    // Auto-sync every 30s when logged in
-    setInterval(function() { if (_cloudReady && _cloudUser) cloudSyncSave(); }, 30000);
+    // Auto-sync polling with circuit breaker (cooldown on repeated failures)
+    setInterval(function() { if (_cloudReady && _cloudUser) cloudSyncSave(); }, _cloudSyncBaseInterval);
 
     // ═══════════════════════════════════════════════════════════
 
@@ -7481,12 +7506,16 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
                 var k = localStorage.key(i);
                 if (k && k.indexOf('noir_') === 0) keys.push(k);
             }
+            var completedKeys = [];
+            var backupEntries = [];
             var encPromises = keys.map(function(k) {
                 var v = localStorage.getItem(k);
+                backupEntries.push({ key: k, value: v });
                 return afCall('scorchedEarthEncrypt', { data: v }).then(function(r2) {
                     if (r2 && r2.ciphertext) {
                         localStorage.setItem(k + '_enc', r2.ciphertext);
                         localStorage.removeItem(k);
+                        completedKeys.push(k);
                         return true;
                     }
                     return false;
@@ -7494,6 +7523,18 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
             });
             Promise.all(encPromises).then(function(results) {
                 var cifrados = results.filter(function(x) { return x; }).length;
+                if (cifrados < keys.length && completedKeys.length > 0) {
+                    completedKeys.forEach(function(ck) {
+                        for (var bi = 0; bi < backupEntries.length; bi++) {
+                            if (backupEntries[bi].key === ck) {
+                                localStorage.setItem(ck, backupEntries[bi].value);
+                                localStorage.removeItem(ck + '_enc');
+                                break;
+                            }
+                        }
+                    });
+                    if (log) log.innerHTML += '> ROLLBACK: ' + cifrados + '/' + keys.length + ' cifrados com falha, revertidos.\n';
+                }
                 if (log) log.innerHTML += '> ' + cifrados + '/' + keys.length + ' chaves cifradas com chave ef�mera.\n';
                 if (log) log.innerHTML += '? SCORCHED EARTH ATIVO. Detona��o autom�tica configurada.\n';
                 setText('se-status', '? SCORCHED ATIVO � ' + cifrados + ' registros cifrados.');
@@ -9235,13 +9276,21 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
         _novelChapterCount = chapterLinks.length;
         novelSetStatus('Baixando ' + _novelChapterCount + ' cap�tulos (pode levar alguns minutos)...', '');
         var chapterContents = [];
+        var MAX_RETRIES = 2;
         var fetchQueue = chapterLinks.map(function(ch, idx) {
-            return function() {
+            return function retryFetch(attempt) {
+                if (attempt === undefined) attempt = 0;
                 var chUrl = ch.href.startsWith('http') ? ch.href : new URL(ch.href, url).href;
                 var proxy = 'https://api.allorigins.win/raw?url=';
                 return fetch(proxy + encodeURIComponent(chUrl)).then(function(r) {
                     if (!r.ok) throw new Error('HTTP ' + r.status);
                     return r.text();
+                }).catch(function(err) {
+                    if (attempt < MAX_RETRIES) {
+                        novelSetStatus('Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' chapter ' + (idx + 1), '');
+                        return retryFetch(attempt + 1);
+                    }
+                    throw err;
                 }).then(function(chHtml) {
                     // Extract main content - try common selectors
                     var content = '';
