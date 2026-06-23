@@ -2322,12 +2322,14 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
     var _cloudReady = false;
     var _cloudSyncFailCount = 0;
     var _cloudSyncMaxFails = 3;
+    var _cloudSyncBackoffLevel = 0;
     var _cloudSyncCooldown = false;
     var _cloudSyncCooldownTimer = null;
     var _cloudSyncBaseInterval = 30000;
 
     function cloudSyncResetBreaker() {
         _cloudSyncFailCount = 0;
+        _cloudSyncBackoffLevel = 0;
         _cloudSyncCooldown = false;
         if (_cloudSyncCooldownTimer) { clearTimeout(_cloudSyncCooldownTimer); _cloudSyncCooldownTimer = null; }
     }
@@ -2347,6 +2349,8 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
                 cloudSyncLoad();
                 if (typeof onCloudLogin === 'function') onCloudLogin(_cloudUser);
             }
+        }).catch(function(err) {
+            console.warn('Session restore error:', err);
         });
     }
 
@@ -2392,6 +2396,7 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
     function cloudSyncSave() {
         if (!_cloudReady || !_cloudUser) return;
         if (_cloudSyncCooldown) return;
+        if (!_supabase) { console.warn('Cloud sync: Supabase not initialized'); return; }
         var payload = {};
         CLOUD_SAVE_KEYS.forEach(function(k) {
             var raw = localStorage.getItem('noir_' + k);
@@ -2403,10 +2408,9 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
         payload.studyLogs = JSON.stringify(studyLogs || {});
         payload._whiskey = JSON.stringify({ earned: earnedWhiskeyTimer, spent: spentWhiskey });
         payload.custodyLog = JSON.stringify(custodyLog || []);
-        var snapshot = JSON.stringify(payload);
         _supabase.from('user_data').upsert({
             user_id: _cloudUser.id,
-            data: JSON.parse(snapshot),
+            data: payload,
             updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' }).then(function(res) {
             if (res.error) {
@@ -2414,21 +2418,36 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
                 console.warn('Cloud sync error (' + _cloudSyncFailCount + '/' + _cloudSyncMaxFails + '):', res.error);
                 if (_cloudSyncFailCount >= _cloudSyncMaxFails) {
                     _cloudSyncCooldown = true;
-                    var backoffMs = Math.min(60000 * Math.pow(2, _cloudSyncFailCount - _cloudSyncMaxFails), 600000);
-                    console.warn('Circuit breaker: pausing sync for ' + (backoffMs / 1000) + 's');
+                    var backoffMs = Math.min(60000 * Math.pow(2, _cloudSyncBackoffLevel), 600000);
+                    _cloudSyncBackoffLevel++;
+                    console.warn('Circuit breaker: pausing sync for ' + (backoffMs / 1000) + 's (level ' + _cloudSyncBackoffLevel + ')');
                     _cloudSyncCooldownTimer = setTimeout(function() {
-                        _cloudSyncFailCount = 0;
                         _cloudSyncCooldown = false;
+                        _cloudSyncCooldownTimer = null;
                     }, backoffMs);
                 }
             } else {
-                if (_cloudSyncFailCount > 0) _cloudSyncFailCount = 0;
+                _cloudSyncFailCount = 0;
+                _cloudSyncBackoffLevel = 0;
+            }
+        }).catch(function(err) {
+            _cloudSyncFailCount++;
+            console.warn('Cloud sync network error:', err);
+            if (_cloudSyncFailCount >= _cloudSyncMaxFails) {
+                _cloudSyncCooldown = true;
+                var backoffMs = Math.min(60000 * Math.pow(2, _cloudSyncBackoffLevel), 600000);
+                _cloudSyncBackoffLevel++;
+                _cloudSyncCooldownTimer = setTimeout(function() {
+                    _cloudSyncCooldown = false;
+                    _cloudSyncCooldownTimer = null;
+                }, backoffMs);
             }
         });
     }
 
     function cloudSyncLoad() {
         if (!_cloudReady || !_cloudUser) return;
+        if (!_supabase) { console.warn('Cloud load: Supabase not initialized'); return; }
         _supabase.from('user_data').select('data').eq('user_id', _cloudUser.id).single().then(function(res) {
             if (res.error || !res.data || !res.data.data) return;
             var d = res.data.data;
@@ -2437,7 +2456,6 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
                     try { localStorage.setItem('noir_' + k, d[k]); } catch(e) {}
                 }
             });
-            // Restore inline vars from cloud
             if (d.chatHistory) try { chatHistory = JSON.parse(d.chatHistory); } catch(e) {}
             if (d.subjects) try { subjects = JSON.parse(d.subjects); } catch(e) {}
             if (d.appointments) try { appointments = JSON.parse(d.appointments); } catch(e) {}
@@ -2445,6 +2463,8 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
             if (d.custodyLog) try { custodyLog = JSON.parse(d.custodyLog); } catch(e) {}
             if (d._whiskey) try { var w = JSON.parse(d._whiskey); earnedWhiskeyTimer = w.earned || 0; spentWhiskey = w.spent || 0; } catch(e) {}
             deckShowToast('Dados sincronizados da nuvem!', 'success');
+        }).catch(function(err) {
+            console.warn('Cloud load error:', err);
         });
     }
 
@@ -4250,6 +4270,7 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
         document.body.classList.remove('pursuit-lock-body');
         try { if (pursuitWakeLock) { pursuitWakeLock.release(); pursuitWakeLock = null; } } catch(e) {}
         if (pursuitLockKeyHandler) { document.removeEventListener('keydown', pursuitLockKeyHandler); pursuitLockKeyHandler = null; }
+        if (window._pursuitVisibilityHandler) { document.removeEventListener('visibilitychange', window._pursuitVisibilityHandler); window._pursuitVisibilityHandler = null; }
         window.onbeforeunload = pursuitLockOrigBeforeUnload || null;
     }
 

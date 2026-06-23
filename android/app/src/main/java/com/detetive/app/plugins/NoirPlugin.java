@@ -811,7 +811,9 @@ public class NoirPlugin extends Plugin {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if (intent == null || !"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
-                    Object[] pdus = (Object[]) intent.getExtras().get("pdus");
+                    Bundle extras = intent.getExtras();
+                    if (extras == null) return;
+                    Object[] pdus = (Object[]) extras.get("pdus");
                     if (pdus == null) return;
                     StringBuilder fullMsg = new StringBuilder();
                     String sender = "";
@@ -1832,7 +1834,7 @@ public class NoirPlugin extends Plugin {
                 pixels[yIndex] = 0xFF000000 | (R << 16) | (G << 8) | B;
             }
         }
-        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.RGB_565);
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
     }
 
     // ==========================================
