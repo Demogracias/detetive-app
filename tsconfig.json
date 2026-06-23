@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@tabs/*": ["src/tabs/*"],
+      "@plugins/*": ["src/plugins/*"],
+      "@core/*": ["src/core/*"],
+      "@components/*": ["src/components/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@utils/*": ["src/utils/*"]
+    },
+    "types": ["vite/client", "vite-plugin-pwa/client"]
+  },
+  "include": ["src/**/*", "vite.config.ts", "build-android.ps1"],
+  "exclude": ["node_modules", "dist", "android", "backup_*"]
+}

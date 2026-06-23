@@ -1,24 +1,33 @@
-﻿# PowerShell script for automatic backup of app.html
-$source = "C:\Users\Joaov\Desktop\ver final\app.html"
-$backupDir = "C:\Users\Joaov\Desktop\ver final\backups"
+﻿# Backup all current APKs with timestamps
+$root = Split-Path -Parent $PSCommandPath
+$backupDir = Join-Path $root "backups"
+if (!(Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir | Out-Null }
 
-# Create backup directory if it doesn't exist
-if (-not (Test-Path -LiteralPath $backupDir)) {
-    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+$ts = Get-Date -Format "yyyy-MM-dd_HHmmss"
+$apks = @(
+    @{src="Detetive.apk"; name="Detetive_normal_$ts.apk"},
+    @{src="Detetive_Market_*.apk"; name=$null}
+)
+
+# Backup Detetive.apk (normal build)
+$srcNormal = Join-Path $root "Detetive.apk"
+if (Test-Path $srcNormal) {
+    $dstNormal = Join-Path $backupDir "Detetive_normal_$ts.apk"
+    Copy-Item $srcNormal $dstNormal -Force
+    Write-Host "Backup: $dstNormal" -ForegroundColor Green
+} else {
+    Write-Host "Aviso: Detetive.apk n�o encontrado" -ForegroundColor Yellow
 }
 
-# Generate timestamp
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$backupFile = Join-Path -Path $backupDir -ChildPath "app_$timestamp.html"
-
-# Copy the file
-Copy-Item -LiteralPath $source -Destination $backupFile -Force
-
-Write-Output "Backup created: $backupFile"
-
-# Keep only last 20 backups (delete oldest)
-$backups = Get-ChildItem -LiteralPath $backupDir -Filter "app_*.html" | Sort-Object Name -Descending
-if ($backups.Count -gt 20) {
-    $backups | Select-Object -Skip 20 | Remove-Item -Force
-    Write-Output "Cleaned up old backups (kept 20 most recent)"
+# Backup latest market build
+$marketFiles = Get-ChildItem (Join-Path $root "Detetive_Market_*.apk") | Sort-Object LastWriteTime -Descending
+if ($marketFiles) {
+    $latestMarket = $marketFiles | Select-Object -First 1
+    $dstMarket = Join-Path $backupDir "Detetive_market_$ts.apk"
+    Copy-Item $latestMarket.FullName $dstMarket -Force
+    Write-Host "Backup: $dstMarket" -ForegroundColor Green
+} else {
+    Write-Host "Aviso: Nenhum APK Market encontrado" -ForegroundColor Yellow
 }
+
+Write-Host "`nBackup conclu�do em: $backupDir" -ForegroundColor Cyan

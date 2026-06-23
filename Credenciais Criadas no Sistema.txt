@@ -40,4 +40,4 @@ Treinamento HUMINT (Módulo Fita): HUMINTFIELD
 --- OUTRAS CREDENCIAIS (não vinculadas a fitas) ---
 
 Mural de caso: OBSERVEREAL2
-Hydra: MANYHEADS9
+Hydra: sevenheads

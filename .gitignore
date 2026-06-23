@@ -5,9 +5,12 @@ node_modules/
 backups/
 backup/
 .env
+.env.local
+supabase-config.js
 dist/
 build/
 android/.gradle/
 android/build/
 android/app/build/
+android/keystore.properties
 *.log

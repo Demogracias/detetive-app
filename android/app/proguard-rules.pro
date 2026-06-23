@@ -1,21 +1,39 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Keep Capacitor WebView bridge
+-keep class com.getcapacitor.** { *; }
+-keep class * extends com.getcapacitor.Plugin { *; }
+-keep class * extends com.getcapacitor.annotation.CapacitorPlugin { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep JavaScript interface methods accessible from WebView
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep plugin classes and their methods (reflection via JS bridge)
+-keep class com.detetive.app.** { *; }
+-keepclassmembers class * extends com.getcapacitor.Plugin {
+    @com.getcapacitor.annotation.PluginMethod <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep AndroidX / Material components
+-keep class androidx.** { *; }
+-keep class com.google.android.material.** { *; }
+
+# Keep native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep Parcelable
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator CREATOR;
+}
+
+# Keep R8 rules for web assets
+-keep,allowobfuscation class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Prevent obfuscation of WebView plugin method names
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface public *;
+}

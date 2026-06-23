@@ -1,4 +1,0 @@
-pygments
-colorama
-pillow
-PyMuPDF

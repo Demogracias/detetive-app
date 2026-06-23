@@ -1,165 +1,327 @@
-=== FUNCIONALIDADES — AGÊNCIA NOIR ===
-Arquivo: app.html (canonical)
-Última atualização: 06/06/2026 23:00
+================================================================================
+                        AGENCIA NOIR — FUNCIONALIDADES COMPLETAS
+================================================================================
+Arquivo canônico: app.html
+Ultima atualizacao: 18/06/2026
+APK: Detetive.apk (~220 MB, compilado contra SDK 36)
+================================================================================
 
-========================================
-SISTEMA CENTRAL
-========================================
-- Login/Registo com autenticação local (localStorage)
-- Deck de fitas modulares com desbloqueio por código
-- Modo administrador (senha: ADM-SHADOW-X)
-- Tema noir com tipografia Oswald + som de máquina de escrever
+1. SISTEMA CENTRAL
+--------------------------------------------------------------------------------
+- Login/Registro com autenticacao local (localStorage), log de debug
+- reCAPTCHA-like bot detection (mousemove + time + checkbox) no login
+- Modo Administrador (usuario: TURING / senha: ADM-SHADOW-X) — desbloqueia todas as abas
+- Tema noir com tipografia Oswald/DM Mono, som de maquina de escrever
 - Splash screen com fallback 5s
-- Navegação por abas com scroll horizontal
-- Persistência total via localStorage
+- Navegacao por abas com scroll horizontal infinito
+- Persistencia total via localStorage
+- Sistema de whiskey (moeda interna) — ganha 5/dia, gasta para desbloquear livros
+- Activity Log (noirLogEvent) — registro cronologico de eventos no Dashboard
+- Dashboard com cards de status (VPN, Geo, DND, Grayscale, Selfie, SMS, Audio, Timer, SoundMeter, Compass)
+- Theme Switcher: 4 temas via CSS variables (Noir/red, Matrix/green, Amber/orange, Cyber/blue)
+- PIN Lock overlay (4-6 digitos, hash simples, auto-lock no load)
+- Biometric unlock (API 28+, androidx.biometric via reflection)
 
-========================================
-ABAS PRINCIPAIS
-========================================
+2. ABAS PRINCIPAIS
+--------------------------------------------------------------------------------
+2.1. ARQUIVO (tracker)
+     - Grade de disciplinas/topicos com progresso (pre/teo/que/rev)
+     - Temporizador de estudo (perseguicao)
+     - Quadro de investigacao (mapa mental com nos/arestas)
+     - Metodologia de estudo integrada
+     - Score geral + whiskey
 
-1. ARQUIVO (tracker)
-   - Grade de disciplinas/tópicos com progresso (pré/teo/que/rev)
-   - Temporizador de estudo (perseguição)
-   - Quadro de investigação (mapa mental com nós/arestas)
-   - Metodologia de estudo integrada
-   - Score geral (dinheiro) + whiskey
+2.2. PROTOCOLO (protocol)
+     - Gestao de habitos diarios
+     - Checkbox condicionamento
 
-2. PROTOCOLO (protocol)
-   - Gestão de hábitos diários
-   - Checkbox condicionamento
+2.3. PERSEGUICAO (persecution)
+     - Temporizador de estudo (Pomodoro noir)
+     - Disciplinas de perseguicao
+     - Relogio de tocai
 
-3. PERSEGUIÇÃO (persecution)
-   - Temporizador de estudo (Pomodoro noir)
-   - Disciplinas de perseguição
-   - Relógio de tocai
+2.4. INSPETOR (detective) — Central de Comando
+     - Chat estilo noir (IA generativa local com contextos)
+     - Cadeia de Custodia (showCustodyLog)
+     - Auditoria de Integridade (runIntegrityAudit)
+     - Evidencias Contaminadas / Quarentena (showQuarantine)
+     - Scanner de Desempenho (runPerformanceScan — RAM, FPS, processos, localStorage)
+     - Central de Escutas (toggleWiretap — monitora localStorage)
+     - Mapa de Conexoes (showNetworkMap — URLs nao autorizadas)
+     - Boletim de Ocorrencias (showDailyBulletin — estatisticas diarias)
+     - Investigacao de Sincronia (runSyncInvestigation — backups, consistencia)
+     - Limpar Chat (clearChat)
+     - Relatorio de Campo (exportFieldReport — .txt)
+     - Cifra de Cesar (showCipherTool)
+     - Protocolo Silencio (toggleSilenceProtocol)
+     - Agendar ligacao telefonica (gasta 1 whiskey)
+     - Dropdown de acoes rapidas (detQuickSelect)
 
-4. INSPETOR (detective) — Sistema Anti-Virus + Central de Comando
-   - Fotografia do agente com upload (base64 localStorage)
-   - Chat com respostas estilo noir (IA generativa local com contextos)
-   - Agendar ligação telefónica (gasta 1 whiskey, toca no horário marcado)
-   - Ações rápidas via dropdown (detQuickSelect)
-   - Cadeia de Custódia (showCustodyLog) — registo cronológico de operações
-   - Auditoria de Integridade (runIntegrityAudit) — valida localStorage, JSON, matérias, calendário
-   - Evidências Contaminadas / Quarentena (showQuarantine) — scan + restaurar/eliminar itens suspeitos
-   - Scanner de Desempenho (runPerformanceScan) — RAM, FPS, processos, armazenamento
-   - Central de Escutas (toggleWiretap) — monitoriza alterações em localStorage em tempo real
-   - Mapa de Conexões (showNetworkMap) — deteta URLs não autorizadas via performance.getEntries
-   - Boletim de Ocorrências (showDailyBulletin) — estatísticas diárias do sistema
-   - Investigação de Sincronia (runSyncInvestigation) — verifica backups e consistência de dados
-   - LIMPAR CHAT (clearChat) — limpa todo o histórico da conversa
-   - RELATÓRIO DE CAMPO (exportFieldReport) — exporta histórico do chat como .txt
-   - CRIPTOGRAFAR (showCipherTool) — cifra de César (shift 1-25, codificar/descodificar, copiar pro chat)
-   - PROTOCOLO SILÊNCIO (toggleSilenceProtocol) — silencia todos os sons (persiste)
+2.5. LEGISTA (coroner)
+     - Gavetas de arquivo morto
+     - Fichas de cadaver
+     - Estatisticas de casos
 
-5. LEGISTA (coroner)
-   - Gavetas de arquivo morto
-   - Fichas de cadáver (nome, causa, local, anotações)
-   - Estatísticas de casos
+2.6. BIBLIOTECA (reading)
+     - Leitor de livros .txt com pagamento em whiskey (10 para desbloquear)
+     - Biblioteca espiritual
+     - Arquivos selados
 
-6. BIBLIOTECA (reading)
-   - Leitor de livros .txt
-   - Biblioteca espiritual + arquivos selados
-   - Pagamento com whiskey para desbloquear
+2.7. ACADEMIA (academia)
+     - Banco de questoes ENEM (~3036 questoes, 2009-2024)
+     - SRS (Spaced Repetition) baseado em SM-2
+     - Filtros por ano, disciplina, idioma, status
+     - Missao do dia com revisoes pendentes
+     - XP, nivel, codinome do agente
+     - Relatorio de desempenho por disciplina
+     - Simulado cronometrado
+     - Questao aleatoria
 
-7. ACADEMIA (academia)
-   - Banco de questões ENEM (3036 questões, 2009-2024)
-   - SRS (Spaced Repetition System) baseado em SM-2
-   - Filtros por ano, disciplina, idioma, status
-   - Missão do dia com revisões pendentes
-   - XP, nível, codinome do agente
-   - Relatório de desempenho por disciplina
-   - Simulado cronometrado
-   - Questão aleatória
+2.8. AVALIACAO (correcao)
+     - Gabaritos em massa (cadastro, edicao, remocao)
+     - Correcao de provas (lote de alunos)
+     - Relatorio estatistico (media, maior nota, distribuicao)
+     - Folha de respostas configuravel (N questoes, A-H)
+     - Impressao da folha (@media print)
+     - Exportar CSV
 
-8. AVALIAÇÃO (correcao)
-   - Gabaritos em massa (cadastro, edição, remoção)
-   - Correção de provas (lote de alunos)
-   - Relatório estatístico (média, maior nota, distribuição)
-   - Folha de respostas configurável (N questões, A-H)
-   - Impressão da folha (@media print)
-   - Exportar CSV
+2.9. ESCALA (schedule)
+     - Calendario mensal com navegacao
+     - Heatmap de estudo
+     - Estatisticas (ofensiva, sequencia, total)
 
-9. ESCALA (schedule)
-   - Calendário mensal com navegação (anos/meses)
-   - Heatmap de estudo (quadradinhos)
-   - Clique nos dias para marcar estudo
-   - Estatísticas (ofensiva, sequência, total)
+2.10. VOCABULARIO (vocabulary)
+      - Flashcards ENEM/ingles
+      - SRS proprio
+      - Estatisticas de dominio
 
-10. VOCABULÁRIO (vocabulary)
-    - Flashcards ENEM/inglês
-    - SRS próprio
-    - Estatísticas de domínio
+2.11. FITAS (fitas)
+      - Gestao de fitas modulares
+      - Upload de novos modulos (.html)
+      - Desbloqueio por codigo
+      - Atalhos de teclado Ctrl+1..9
 
-11. FITAS (fitas)
-    - Gestão de fitas modulares
-    - Upload de novos módulos (.html)
-    - Desbloqueio por código
-    - Atalhos de teclado Ctrl+1..9
+2.12. O ENIGMA — Nucleo de Plugins Nativos
+      Sub-abas: DASHBOARD | TERMINAL | VIGILANCIA | CRIPTO | FOCO | NAVEGADOR
 
-12. Demais abas: O CLUBE, DIA DE CAMPO, PERFIL,
-    IMPORTAR, FOCO, JORNADA, METODOLOGIA, O ENIGMA,
-    ARQUIVO OCULTO
+3. VIGILANCIA — PLUGINS NATIVOS (Android)
+--------------------------------------------------------------------------------
+3.1. SHUTDOWN TIMER
+     - Agendamento de desligamento do sistema por comando (PluginMethod)
+     - Cancelamento
 
-========================================
-TECNOLOGIAS / DEPENDÊNCIAS
-========================================
-- 100% client-side (HTML + CSS + JS puro)
-- Capacitor/Android (APK ~205 MB)
-- Chart.js (cdn ou base64 fallback)
-- Font Awesome (cdn ou base64 fallback)
-- localStorage para persistência
-- Open-Meteo API (geolocalização + clima)
-- ENEM data: enem/enem-data.js (3036 questões)
-- Dados: enem-api-main (2009-2023) + enem-extractor (2023/2024)
+3.2. ESCALA DE CINZA (Grayscale)
+     - Aplica/remove filtro grayscale no dispositivo (Settings.System)
+     - Alterna via toggle
 
-========================================
-CHANGELOG
-========================================
-[06/06/2026] (sessão 1)
-- Corrigido encoding UTF-8 do app.html (138 bytes inválidos → 0)
-- Restaurado de backup (app_20260605_162801.html) com codificação correta
-- Merge completo: ACADEMIA + AVALIAÇÃO portados de basedetetive.html
-- Adicionados botões de navegação ACADEMIA e AVALIAÇÃO
-- Adicionado enem-data.js como script no head
-- Fix: build-android.ps1 usa app.html como índice primário
-- APK rebuildado (205.6 MB)
-- Criado este ficheiro de funcionalidades
+3.3. NAO PERTURBE (DND)
+     - Ativa/desativa NotificationManager.setInterruptionFilter
+     - Status ON/OFF
 
-[06/06/2026] (sessão 2)
-- Encoding fix definitivo: todo ficheiro re-escrito com UTF-8 puro (0 bytes inválidos)
-- Todas as operações de escrita agora usam -Encoding UTF8
-- APK (Detetivedodia6noite.apk) extraído para recuperar 8 funcionalidades INSPETOR originais:
-  * 🗂️ showCustodyLog — Cadeia de Custódia
-  * 🔍 runIntegrityAudit — Auditoria de Integridade
-  * ☣️ showQuarantine — Evidências Contaminadas (quarentena com restaurar/eliminar)
-  * ⚡ runPerformanceScan — Scanner de Desempenho (RAM, FPS, processos, localStorage)
-  * 🎧 toggleWiretap — Central de Escutas (monitoriza alterações em localStorage)
-  * 🗺️ showNetworkMap — Mapa de Conexões (deteta URLs não autorizadas)
-  * 📋 showDailyBulletin — Boletim de Ocorrências (estatísticas diárias)
-  * 🔄 runSyncInvestigation — Investigação de Sincronia (backups, consistência)
-- Substituídas funções equivalentes que criei na sessão anterior:
-  * showChainOfCommand → substituído por showCustodyLog
-  * toggleSurveillance → substituído por toggleWiretap
-  * openEvidenceLocker / addEvidenceFromChat / removeEvidence → substituído por showQuarantine
-- Removidas variáveis obsoletas: surveillanceActive, surveillanceInterval, surveillanceStartTime, evidenceLocker
-- Removida limpeza de vigilância ao sair da aba INSPETOR (já não usada)
-- Mantidas 4 funcionalidades novas (sem equivalente no APK):
-  * 🧹 clearChat — Limpar Chat
-  * 📄 exportFieldReport — Relatório de Campo (.txt)
-  * 🔐 showCipherTool — Cifra de César (codificar/descodificar)
-  * 🔇 toggleSilenceProtocol — Protocolo Silêncio
-- Adicionada função detQuickSelect (dropdown de ações rápidas no chat)
-- Adicionadas variáveis globais: custodyLog, addCustodyLog, wiretapActive, knownNetworkUrls, quarantineItems
-- Layout detective substituído pelo original (dropdown + 5 filas de 3 botões) + meus 4 botões extra
+3.4. INTRUDER SELFIE (Camera2)
+     - Captura selfie com camera frontal ao errar senha
+     - Salva em filesDir/selfies/ com .nomedia
+     - Mirror na imagem capturada
+     - Armado/desarmado via botao
 
-[06/06/2026] (sessão 3)
-- Corrigido bug de login: linha duplicada `deckCurrentUser = account` removida
-- Adicionado `updateAdminUIDisplay()` ao handleLogin (admin UI não atualizava ao logar)
-- Registro agora faz auto-login (cria conta + inicia sessão automaticamente)
-- Splash fallback simplificado: verifica `__deckUserLogged` antes de mostrar auth
-- removeSplash agora usa guard `__splashRemoved` para evitar execução dupla
-- initDeck com sessão restaurada agora também remove splash e mostra app-layout
+3.5. GEO-FENCE (LocationManager)
+     - addProximityAlert com raio de 50m a 5km
+     - BroadcastReceiver para transicoes de entrada/saida
+     - Log de alertas no HTML
 
-[05/06/2026]
-- Backup: app_20260605_162801.html (425 KB)
-- basedetetive.html com ACADEMIA e AVALIAÇÃO funcionais
+3.6. SMS GUARDIAN (SmsManager)
+     - Envio de SMS para numero de backup
+     - Listener de SMS recebido com comandos: KILL, SELFIE, LOCATION
+     - Emite eventos JS via notifyListeners
+
+3.7. REMOTE KILL
+     - Wipe total: deleta filesDir, cache, external files, cookies, WebStorage
+     - Mata processo (Process.killProcess)
+     - Confirmacao visual
+
+3.8. AUDIO RECORDER (MediaRecorder)
+     - Gravacao em AAC/MP4 no filesDir/recordings/
+     - Listar, deletar gravacoes
+     - Status ON/OFF
+
+3.9. WI-FI SCANNER (WifiManager)
+     - Scan de redes proximas (SSID, BSSID, level, frequency)
+     - Fallback de 10s timeout
+     - Exibicao com barras de sinal
+
+3.10. FLASHLIGHT / SOS (CameraManager.setTorchMode)
+      - Liga/desliga lanterna
+      - Padrao SOS (3 curtos, 3 longos, 3 curtos — 200ms)
+      - Strobe (100ms blink)
+      - Cancela padrao
+
+3.11. SOUND METER (AudioRecord)
+      - Leitura PCM periodica (200ms)
+      - Evento JS soundLevel com level% + dB
+      - One-shot getSoundLevel
+
+3.12. COMPASS (SensorManager)
+      - Leitura de azimuth com acelerometro + magnetometro
+      - Direcao cardeal (N/NE/E/SE/S/SW/W/NW)
+      - Timeout de 3s
+
+3.13. BIOMETRIC AUTH (BiometricPrompt API 28+)
+      - Verifica disponibilidade via reflection (canAuthenticate)
+      - Autenticacao com CancellationSignal + Executor
+      - Fallback via PIN se indisponivel
+
+4. ANTI-FORENSIC (AntiForensicPlugin.java)
+--------------------------------------------------------------------------------
+4.1. HADES — KeyStore Ephemeral
+     - Geracao de chave AES-256 no AndroidKeyStore
+     - Cifra/decifra com AES/GCM/NoPadding (IV + ciphertext base64)
+     - Wipe total: destroi todas as chaves e dados do app
+
+4.2. POLTERGEIST — Detonador Automatico
+     - BroadcastReceivers: USB, SIM, fone, rede, energia
+     - Sensor de acelerometro para deteccao de shake
+     - Agendamento de wipe automatico com delay config (2/5/10s)
+     - Eventos JS: poltergeistAlert, poltergeistWipeDone
+
+4.3. COVERTRACKS — Limpeza de Rastros
+     - Limpa clipboard, logcat, recents, cache do teclado
+     - Remove downloads do DownloadManager
+
+4.4. SENTINELA — Deteccao Forense
+     - Detecta: root, USB debugging, modo desenvolvedor, emulador
+     - Detecta: screen recording/mirroring, ADB network, USB conectado
+     - Threat level (NONE/BAIXO/MEDIO/ALTO)
+     - Monitoramento continuo (10s) com eventos JS sentinelaThreat
+
+5. CRIPTO — MODULOS DE SEGURANCA
+--------------------------------------------------------------------------------
+5.1. BURNER NOTES (Android KeyStore + Web Crypto)
+     - Tenta cifra nativa primeiro; fallback para Web Crypto API
+     - AES-256/GCM, chave armazenada no AndroidKeyStore
+     - Ciphertext + IV em base64
+
+5.2. ESTEGANOGRAFIA LSB
+     - Oculta mensagem em imagens PNG/BMP
+     - Extrai mensagem oculta
+     - 100% client-side (canvas API)
+
+5.3. SECURE FILE SHREDDER
+     - DoD 5220.22-M (3 passagens)
+     - Gutmann (35 passagens)
+     - Tenta nativo (SAF + FileChannel) primeiro; fallback web
+     - Barra de progresso + log
+
+6. FOCO — PRODUTIVIDADE
+--------------------------------------------------------------------------------
+6.1. BLOQUEIO DE SITES
+     - Lista de sites bloqueados (localStorage)
+     - Perde 2 whiskey ao acessar site bloqueado
+     - VPN de bloqueio (BlockVpnService — intercepta DNS)
+
+6.2. VPN DE BLOQUEIO (BlockVpnService.java)
+     - VpnService que monitora pacotes DNS (UDP/53)
+     - Bloqueia dominios da blacklist
+     - Requer consentimento do usuario na primeira ativacao
+
+6.3. CRONOMETRO
+     - Temporizador com alerta sonoro
+
+6.4. MODO FOCO
+     - Bloqueio agendado por horario (inicio/fim)
+     - Botoes: bloquear redes sociais, jogos, limpar tudo
+
+6.5. TERMINAL LAUNCHER
+     - Launcher minimalista em estilo terminal (texto puro, sem icones)
+     - Fullscreen overlay preto com prompt "$" e cursor blink
+     - Filtro ao digitar, navegacao por setas, Enter executa, Esc sai
+     - Lista apps nao-sistema via PackageManager (nativo)
+     - 3 temas: Terminal (verde matrix + grayscale), Noir (ambar), Mono (cinza)
+     - Modo anti-distracao: grayscale filter, sem cores, sem icones
+
+7. NAVEGADOR — COMUNICACAO P2P
+--------------------------------------------------------------------------------
+- Navegador web embutido (iframe sandbox)
+- Chat P2P via WebRTC (oferta/resposta SDP)
+- Criptografia DTLS 128-bit AES
+- Modo LAN-only (privacy filter)
+
+8. ARQUIVO OCULTO — SECRET ARCHIVE
+--------------------------------------------------------------------------------
+8.1. Arquivo Proibido (forbidden)
+     - Textos gerados proceduralmente
+     - Efeito CRT scanlines + musica ambiente
+
+8.2. Manuscrito Amaldicoado (cursed)
+     - Gerador de manuscritos
+
+8.3. Sonho Lucido (dream)
+     - Conteudo onirico procedural
+
+8.4. Frequencia do Abismo (frequency)
+     - Visualizador de frequencia com canvas + audio API
+     - Efeitos visuais psicodelicos
+
+8.5. Lovecraft — Obras Completas
+     - 5 obras integradas: Chamado de Cthulhu, Horror de Dunwich, Cor que Caiu do Espaco,
+       Montanhas da Loucura, Sombra sobre Innsmouth
+     - 7 PDFs completos em base64
+     - Seletor com loading textual e efeito typewriter
+     - Cache em ASSETS[d]
+
+8.6. Ouroboros (ouroboros)
+     - Conteudo ciclico/enigmatico
+
+9. BOOT RECEIVER
+--------------------------------------------------------------------------------
+- BootReceiver.java: inicia MainActivity ao ligar o dispositivo
+- Registrado no AndroidManifest com RECEIVE_BOOT_COMPLETED
+- Flag RECEIVER_EXPORTED para Android 13+
+
+10. PERMISSOES ANDROID
+--------------------------------------------------------------------------------
+RECEIVE_BOOT_COMPLETED, INTERNET, VIBRATE, POST_NOTIFICATIONS,
+SCHEDULE_EXACT_ALARM, WRITE_SETTINGS, ACCESS_NOTIFICATION_POLICY,
+WAKE_LOCK, SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE,
+FOREGROUND_SERVICE_SPECIAL_USE, ACCESS_FINE_LOCATION,
+ACCESS_COARSE_LOCATION, ACCESS_BACKGROUND_LOCATION, CAMERA,
+SEND_SMS, RECEIVE_SMS, RECORD_AUDIO, ACCESS_WIFI_STATE,
+CHANGE_WIFI_STATE, QUERY_ALL_PACKAGES, READ_LOGS,
+MANAGE_EXTERNAL_STORAGE
+
+11. ARQUITETURA
+--------------------------------------------------------------------------------
+- app.html (~16.300 linhas): toda a interface + JS
+- www/index.html: copia sincronizada de app.html
+- NoirPlugin.java (~1.600 linhas, 13+ grupos): shutdown, grayscale, dnd,
+  geofence, selfie, sms, remote kill, audio recorder, wifi, flashlight/sos,
+  biometric, sound meter, compass, burner notes, shredder
+- AntiForensicPlugin.java (~620 linhas, 4 modulos): hades, poltergeist,
+  covertracks, sentinela + launcher (getInstalledApps, launchApp)
+- BlockVpnService.java: VpnService DNS block
+- BootReceiver.java: inicializacao na boot
+- NoirAccessibilityService.java: servico de acessibilidade
+- AndroidManifest.xml: todas as permissoes + servicos declarados
+- Capacitor 6, compileSdk 36, targetSdk 36
+- 100% client-side + plugins nativos Java
+
+12. CHANGELOG RECENTE
+--------------------------------------------------------------------------------
+[18/06/2026]
+- Criado AntiForensicPlugin.java (Hades + Poltergeist + CoverTracks + Sentinela)
+- Adicionado Terminal Launcher minimalista (Foco) — overlay preto, estilo terminal,
+  lista texto, 3 temas, filtro, navegacao por teclado
+- Permissoes: QUERY_ALL_PACKAGES, READ_LOGS, MANAGE_EXTERNAL_STORAGE
+- UI anti-forensic completa na aba Vigilancia
+- Bugfix: optional chaining removido (WebView Android)
+- Bugfix: NaN guards em compasso, shutdown timer, audio size
+- Bugfix: MediaRecorder.isRecording() via reflection
+- Bugfix: Settings.Global.ADB_WIFI_ENABLED via string "adb_wifi_enabled"
+- Sistema i18n PT/EN removido (full portugues permanentemente)
+- Build SDK 36, APK ~220 MB
+
+[06/06/2026]
+- Corrigido encoding UTF-8
+- Merge ACADEMIA + AVALIACAO de basedetetive.html
+- 8 funcionalidades INSPETOR recuperadas de APK extraido
+
+================================================================================

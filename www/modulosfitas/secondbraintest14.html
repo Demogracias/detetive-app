@@ -662,8 +662,8 @@
                     calculateCognitiveLinks();
                     populateSalaDropdown();
                     renderSemanticSalas();
-                    Graph.graphData(brainData);
-                    Graph.d3ReheatSimulation();
+                    if (Graph) Graph.graphData(brainData);
+                    if (Graph) Graph.d3ReheatSimulation();
                     
                     showToast(`Fusão completa: +${salasMerged} Salas, +${nodesMerged} Ideias, +${linksMerged} Conexões.`);
                 } catch(err) {
@@ -799,7 +799,7 @@
             renderSemanticSalas();
             populateSalaDropdown();
             
-            Graph.d3ReheatSimulation();
+            if (Graph) Graph.d3ReheatSimulation();
             showToast(`Sala "${name.toUpperCase()}" estabelecida no vácuo 3D.`);
         }
 
@@ -829,7 +829,7 @@
             renderSemanticSalas();
             populateSalaDropdown();
 
-            Graph.d3ReheatSimulation();
+            if (Graph) Graph.d3ReheatSimulation();
 
             let msg = `Sala "${deletedSala.name}" dissipada.`;
             if (reallocatedCount > 0) {
@@ -916,6 +916,7 @@
 
         // --- DESENHAR HOLOGRAMAS DAS SALAS COGNITIVAS NA CENA 3D ---
         function renderSemanticSalas() {
+            if (!Graph || !Graph.scene) return;
             const scene = Graph.scene();
             
             salaMeshes.forEach(mesh => scene.remove(mesh));
@@ -967,9 +968,313 @@
             });
         }
 
-        // --- INICIALIZAÇÃO DO GRAFO 3D ---
+        // --- VERIFICAÇÃO DE SUPORTE WEBGL ---
+        function isWebGLSupported() {
+            try {
+                var c = document.createElement('canvas');
+                return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+            } catch(e) { return false; }
+        }
+
+        // --- GRAFO 2D (FALLBACK PARA TABLETS SEM WEBGL) ---
+        function createGraph2D() {
+            var container = document.getElementById('3d-graph');
+            container.innerHTML = '';
+            var canvas = document.createElement('canvas');
+            canvas.id = 'graph-2d-canvas';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.display = 'block';
+            canvas.style.cursor = 'pointer';
+            container.appendChild(canvas);
+            var ctx = canvas.getContext('2d');
+
+            var _data = { nodes: [], links: [] };
+            var _onClick = null, _onHover = null;
+            var _hovered = null, _dragging = null, _dragOffX = 0, _dragOffY = 0;
+            var _offX = 0, _offY = 0, _scale = 1;
+            var _animId = null;
+
+            function resize() {
+                canvas.width = container.clientWidth || window.innerWidth;
+                canvas.height = container.clientHeight || window.innerHeight;
+                draw();
+            }
+            resize();
+
+            function resolveLinks(d) {
+                d.links.forEach(function(l) {
+                    if (typeof l.source === 'object') return;
+                    l.source = d.nodes.find(function(n) { return n.id === l.source; }) || l.source;
+                    if (typeof l.target === 'object') return;
+                    l.target = d.nodes.find(function(n) { return n.id === l.target; }) || l.target;
+                });
+            }
+
+            function runForceSimulation(d) {
+                var nodes = d.nodes;
+                var links = d.links;
+                var w = canvas.width, h = canvas.height;
+                var cx = w / 2, cy = h / 2;
+                var rad = Math.min(w, h) * 0.25;
+
+                // Init positions in circle
+                nodes.forEach(function(n, i) {
+                    var a = (i / nodes.length) * 2 * Math.PI;
+                    n.x = cx + rad * Math.cos(a);
+                    n.y = cy + rad * Math.sin(a);
+                    n.vx = 0; n.vy = 0;
+                });
+
+                for (var iter = 0; iter < 150; iter++) {
+                    var alpha = 1 - iter / 150;
+                    // Repulsion
+                    for (var i = 0; i < nodes.length; i++) {
+                        for (var j = i + 1; j < nodes.length; j++) {
+                            var dx = nodes[j].x - nodes[i].x;
+                            var dy = nodes[j].y - nodes[i].y;
+                            var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                            var f = 6000 / (dist * dist) * alpha;
+                            nodes[i].x -= f * dx / dist;
+                            nodes[i].y -= f * dy / dist;
+                            nodes[j].x += f * dx / dist;
+                            nodes[j].y += f * dy / dist;
+                        }
+                    }
+                    // Attraction along edges
+                    links.forEach(function(l) {
+                        var s = l.source, t = l.target;
+                        if (!s || !t) return;
+                        var dx = t.x - s.x, dy = t.y - s.y;
+                        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        var f = dist * 0.008 * alpha;
+                        s.x += f * dx / dist;
+                        s.y += f * dy / dist;
+                        t.x -= f * dx / dist;
+                        t.y -= f * dy / dist;
+                    });
+                    // Sala attraction
+                    nodes.forEach(function(n) {
+                        var sala = d.salas ? d.salas.find(function(s) { return s.id === n.sala; }) : null;
+                        if (sala) {
+                            var sx = cx + (sala.x * 0.4), sy = cy + (sala.y * 0.4);
+                            n.x += (sx - n.x) * 0.05 * alpha;
+                            n.y += (sy - n.y) * 0.05 * alpha;
+                        }
+                    });
+                    // Centering
+                    nodes.forEach(function(n) {
+                        n.x += (cx - n.x) * 0.001 * alpha;
+                        n.y += (cy - n.y) * 0.001 * alpha;
+                    });
+                }
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(_scale, _scale);
+                ctx.translate(_offX - canvas.width / 2, _offY - canvas.height / 2);
+
+                // Edges
+                _data.links.forEach(function(l) {
+                    var s = l.source, t = l.target;
+                    if (!s || !t) return;
+                    ctx.beginPath();
+                    ctx.moveTo(s.x, s.y);
+                    ctx.lineTo(t.x, t.y);
+                    ctx.strokeStyle = l.type === 'direct' ? 'rgba(220,220,220,0.8)' : 'rgba(80,80,80,0.3)';
+                    ctx.lineWidth = l.type === 'direct' ? 2 : 1;
+                    ctx.stroke();
+                });
+
+                // Salas background rings
+                if (_data.salas) {
+                    _data.salas.forEach(function(sala) {
+                        var sx = 0, sy = 0;
+                        _data.nodes.forEach(function(n) { if (n.sala === sala.id) { sx += n.x; sy += n.y; } });
+                        // center of sala nodes
+                    });
+                }
+
+                // Nodes
+                _data.nodes.forEach(function(n) {
+                    var baseColor = categoryColors[n.category] || '#ffffff';
+                    var baseSize = Math.max(6, (n.title.length * 0.5));
+                    var hasAudio = !!n.audioData;
+                    var hasImage = !!n.imageData;
+                    var hasEither = hasAudio || hasImage;
+
+                    // Glow ring for nodes with media
+                    if (hasEither) {
+                        ctx.beginPath();
+                        ctx.arc(n.x, n.y, baseSize * 1.6, 0, 2 * Math.PI);
+                        ctx.fillStyle = baseColor;
+                        ctx.globalAlpha = hasAudio && hasImage ? 0.25 : 0.12;
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+
+                    // Node circle
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, baseSize, 0, 2 * Math.PI);
+                    ctx.fillStyle = n === _hovered ? '#ffffff' : baseColor;
+                    ctx.fill();
+                    ctx.strokeStyle = '#222';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    // Icon indicator
+                    ctx.fillStyle = '#000';
+                    ctx.font = (baseSize * 0.8) + 'px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    var icon = hasImage && hasAudio ? '\u26A1' : hasAudio ? '\uD83C\uDF99' : hasImage ? '\uD83D\uDDBC' : '';
+                    if (icon) ctx.fillText(icon, n.x, n.y);
+
+                    // Label
+                    ctx.fillStyle = n === _hovered ? '#fff' : '#ccc';
+                    ctx.font = 'bold ' + Math.max(10, baseSize * 0.7) + 'px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(n.title, n.x, n.y + baseSize + 4);
+                });
+
+                ctx.restore();
+            }
+
+            function hitTest(mx, my) {
+                // Convert mouse coords to graph space
+                var gx = (mx - canvas.width / 2) / _scale - _offX + canvas.width / 2;
+                var gy = (my - canvas.height / 2) / _scale - _offY + canvas.height / 2;
+                for (var i = _data.nodes.length - 1; i >= 0; i--) {
+                    var n = _data.nodes[i];
+                    var size = Math.max(6, (n.title.length * 0.5)) + 4;
+                    var dx = gx - n.x, dy = gy - n.y;
+                    if (dx * dx + dy * dy < size * size) return n;
+                }
+                return null;
+            }
+
+            function getCanvasPos(e) {
+                var rect = canvas.getBoundingClientRect();
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+
+            canvas.addEventListener('mousemove', function(e) {
+                var p = getCanvasPos(e);
+                var hit = hitTest(p.x, p.y);
+                if (hit !== _hovered) {
+                    _hovered = hit;
+                    if (_onHover) _onHover(hit);
+                    draw();
+                }
+                // Tooltip follow
+                var tooltip = document.getElementById('graph-tooltip');
+                if (tooltip.style.display === 'block') {
+                    tooltip.style.left = (e.pageX + 15) + 'px';
+                    tooltip.style.top = (e.pageY + 15) + 'px';
+                }
+            });
+
+            canvas.addEventListener('click', function(e) {
+                var p = getCanvasPos(e);
+                var hit = hitTest(p.x, p.y);
+                if (hit && _onClick) _onClick(hit);
+            });
+
+            canvas.addEventListener('mousedown', function(e) {
+                var p = getCanvasPos(e);
+                var hit = hitTest(p.x, p.y);
+                if (hit) {
+                    _dragging = hit;
+                    _dragOffX = p.x - (hit.x * _scale + _offX - canvas.width/2 * (_scale-1));
+                    _dragOffY = p.y - (hit.y * _scale + _offY - canvas.height/2 * (_scale-1));
+                    e.preventDefault();
+                }
+            });
+
+            canvas.addEventListener('mousemove', function(e) {
+                if (!_dragging) return;
+                var p = getCanvasPos(e);
+                _dragging.x = (p.x - _offX + canvas.width/2 * (_scale-1)) / _scale;
+                _dragging.y = (p.y - _offY + canvas.height/2 * (_scale-1)) / _scale;
+                draw();
+            });
+
+            canvas.addEventListener('mouseup', function() { _dragging = null; });
+            canvas.addEventListener('mouseleave', function() {
+                if (_hovered) { _hovered = null; if (_onHover) _onHover(null); draw(); }
+                _dragging = null;
+            });
+
+            canvas.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                var delta = e.deltaY > 0 ? 0.9 : 1.1;
+                _scale = Math.max(0.1, Math.min(5, _scale * delta));
+                draw();
+            }, { passive: false });
+
+            window.addEventListener('resize', resize);
+
+            return {
+                graphData: function(d) {
+                    if (d) {
+                        _data = { nodes: d.nodes || [], links: d.links || [], salas: d.salas || [] };
+                        resolveLinks(_data);
+                        runForceSimulation(_data);
+                        draw();
+                    }
+                    return this;
+                },
+                nodeLabel: function() { return this; },
+                nodeThreeObject: function() { return this; },
+                linkWidth: function() { return this; },
+                linkColor: function() { return this; },
+                linkDirectionalParticles: function() { return this; },
+                linkDirectionalParticleWidth: function() { return this; },
+                linkDirectionalParticleColor: function() { return this; },
+                linkDirectionalParticleSpeed: function() { return this; },
+                onNodeClick: function(fn) { _onClick = fn; return this; },
+                onNodeHover: function(fn) { _onHover = fn; return this; },
+                backgroundColor: function() { return this; },
+                d3Force: function() { return this; },
+                d3ReheatSimulation: function() { runForceSimulation(_data); draw(); },
+                cameraPosition: function(pos) {
+                    if (pos) {
+                        _offX = -(pos.x || 0);
+                        _offY = -(pos.y || 0);
+                        setTimeout(draw, 400);
+                    }
+                    return { x: -_offX, y: -_offY, z: 300 };
+                },
+                zoomToFit: function() { _scale = 1; _offX = 0; _offY = 0; draw(); },
+                width: function(w) { if (w) { canvas.width = w; draw(); } return canvas.width; },
+                height: function(h) { if (h) { canvas.height = h; draw(); } return canvas.height; },
+                scene: function() { return { children: [], find: function(){return null}, add: function(){}, remove: function(){}, traverse: function(){} }; },
+                controls: function() { return { enableZoom: false, enablePan: false, enableRotate: false }; },
+                renderer: function() { return { render: function(){} }; },
+                camera: function() { return { position: { x: 0, y: 0, z: 300 } }; }
+            };
+        }
+
+        // --- INICIALIZAÇÃO DO GRAFO (3D COM FALLBACK 2D) ---
         function initGraph() {
+            if (typeof ForceGraph3D === 'function' && isWebGLSupported()) {
+                try {
+                    initGraph3D();
+                    return;
+                } catch(e) {
+                    console.warn('3D graph failed, using 2D fallback:', e);
+                }
+            }
+            initGraph2D();
+        }
+
+        function initGraph3D() {
             const container = document.getElementById('3d-graph');
+            container.innerHTML = '';
             Graph = ForceGraph3D()(container)
                 .graphData(brainData)
                 .nodeLabel(node => '') 
@@ -980,13 +1285,13 @@
                     
                     const hasAudio = !!node.audioData;
                     const hasImage = !!node.imageData;
-                    const hasEither = hasAudio || hasImage; // Brilho constante (Ativo se tiver 1 dos 2)
-                    const hasBoth = hasAudio && hasImage;   // Super-sinapse (Pulso Luminoso Agressivo)
+                    const hasEither = hasAudio || hasImage;
+                    const hasBoth = hasAudio && hasImage;
 
                     switch(node.category) {
                         case 'Emocao': geometry = new THREE.ConeGeometry(baseSize, baseSize * 2, 4); break;
                         case 'Visual': geometry = new THREE.BoxGeometry(baseSize * 1.5, baseSize * 1.5, baseSize * 1.5); break;
-                        case 'Duvida': geometry = new THREE.IcosahedronGeometry(baseSize * 1.2, 0); break; // NOVO: Icosaedro!
+                        case 'Duvida': geometry = new THREE.IcosahedronGeometry(baseSize * 1.2, 0); break;
                         case 'Informacao':
                         default: geometry = new THREE.SphereGeometry(baseSize, 32, 32); break;
                     }
@@ -994,12 +1299,11 @@
                     let materialParams = {
                         color: baseColor,
                         emissive: hasEither ? baseColor : '#000000',
-                        emissiveIntensity: hasEither ? 0.8 : 0, // Brilho fixo muito superior se tiver anexo
+                        emissiveIntensity: hasEither ? 0.8 : 0,
                         roughness: 0.4,
                         metalness: 0.4
                     };
 
-                    // Aplicar imagem como textura (funciona para todas as categorias e formas)
                     if (hasImage) {
                         const img = new Image();
                         const texture = new THREE.Texture(img);
@@ -1014,7 +1318,6 @@
                     let auraMat = null;
                     let aura = null;
                     if (hasEither) {
-                        // AURA expansiva, com profundidade desativada (depthWrite:false) para brilhar através das coisas
                         const auraGeo = new THREE.SphereGeometry(baseSize * 1.5, 32, 32);
                         auraMat = new THREE.MeshBasicMaterial({
                             color: baseColor,
@@ -1027,7 +1330,6 @@
                         mesh.add(aura);
                     }
 
-                    // Se a nota tiver Aúdio + Imagem, ativa a "Super Sinapse" para pulsar agressivamente na animação
                     if (hasBoth) {
                         mesh.userData.isPulsing = true;
                         mesh.userData.material = material;
@@ -1041,14 +1343,13 @@
                 })
                 .linkWidth(link => link.type === 'direct' ? 2.5 : 0.5) 
                 .linkColor(link => link.type === 'direct' ? 'rgba(220,220,220,0.9)' : 'rgba(80,80,80,0.3)') 
-                // As ligações secundárias recebem partículas (continhas presas) baseadas na quantidade de palavras partilhadas
                 .linkDirectionalParticles(link => {
-                    if (link.type === 'secondary') return Math.min(link.sharedWords || 0, 15); // Máximo de 15 continhas espessas
+                    if (link.type === 'secondary') return Math.min(link.sharedWords || 0, 15);
                     return link.type === 'direct' ? 2 : 0;
                 })
                 .linkDirectionalParticleWidth(link => link.type === 'secondary' ? 2.5 : 1.5)
-                .linkDirectionalParticleColor(link => link.type === 'secondary' ? '#aaaaaa' : '#ffffff') // Continhas opacas/grossas
-                .linkDirectionalParticleSpeed(link => link.type === 'secondary' ? 0.0005 : 0.01) // Movimento quase estático para parecerem presas
+                .linkDirectionalParticleColor(link => link.type === 'secondary' ? '#aaaaaa' : '#ffffff')
+                .linkDirectionalParticleSpeed(link => link.type === 'secondary' ? 0.0005 : 0.01)
                 .backgroundColor('rgba(0,0,0,0)') 
                 .onNodeClick(node => openNode(node))
                 .onNodeHover(node => {
@@ -1087,8 +1388,6 @@
 
             renderSemanticSalas();
 
-            // Aplica configuração dos controles OrbitControls com re-tentativa
-            // (necessário para funcionar dentro de iframe no sistema cassete)
             function applyControls() {
                 const controls = Graph.controls();
                 if (controls) {
@@ -1103,7 +1402,6 @@
                         MIDDLE: THREE.MOUSE.DOLLY,
                         RIGHT: THREE.MOUSE.PAN
                     };
-                    // Re-aplica os event listeners no canvas para garantir captura no iframe
                     const canvas = container.querySelector('canvas');
                     if (canvas && canvas.style) {
                         canvas.style.cursor = 'grab';
@@ -1114,7 +1412,6 @@
             }
 
             if (!applyControls()) {
-                // Retenta até os controles estarem disponíveis (podem não estar prontos na 1ª renderização)
                 let attempts = 0;
                 const retryInterval = setInterval(() => {
                     attempts++;
@@ -1124,7 +1421,6 @@
                 }, 100);
             }
 
-            // Foco no canvas ao clicar para ativar interação no iframe
             container.addEventListener('mousedown', () => {
                 const canvas = container.querySelector('canvas');
                 if (canvas) canvas.focus();
@@ -1139,38 +1435,36 @@
             });
         }
 
+        function initGraph2D() {
+            Graph = createGraph2D();
+            Graph.graphData(brainData);
+        }
+
         // --- ANIMAÇÃO DE PULSO AGRESSIVO DAS SUPER-SINAPSES ---
         function animateSuperSynapses() {
             requestAnimationFrame(animateSuperSynapses);
-            if (!Graph) return;
-            const time = Date.now() * 0.005; // Velocidade do pulso acelerada
+            if (!Graph || !Graph.scene) return;
             const scene = Graph.scene();
-            if (!scene) return;
-
+            if (!scene || typeof scene.traverse !== 'function') return;
+            const time = Date.now() * 0.005;
             let needsRender = false;
 
             scene.traverse(obj => {
-                // Procura os nós marcados ativamente como pulsantes
                 if (obj.userData && obj.userData.isPulsing) {
-                    
-                    // Altera dramaticamente a ESCALA da aura e a intensidade da luz
                     if (obj.userData.aura) {
-                        const scale = 1.1 + Math.sin(time) * 0.4; // A aura incha e encolhe como um coração
+                        const scale = 1.1 + Math.sin(time) * 0.4;
                         obj.userData.aura.scale.set(scale, scale, scale);
                         obj.userData.auraMaterial.opacity = 0.4 + (Math.sin(time) * 0.3);
                     }
-                    
                     if (obj.userData.material) {
-                        obj.userData.material.emissiveIntensity = 0.8 + Math.sin(time) * 0.8; // O núcleo pisca
+                        obj.userData.material.emissiveIntensity = 0.8 + Math.sin(time) * 0.8;
                     }
-                    
                     needsRender = true;
                 }
             });
 
-            // GATILHO VITAL: Força a renderização do Frame caso o motor do Grafo esteja adormecido!
-            if (needsRender && Graph.renderer() && Graph.camera()) {
-                Graph.renderer().render(Graph.scene(), Graph.camera());
+            if (needsRender && Graph.renderer && Graph.renderer() && Graph.camera && Graph.camera()) {
+                try { Graph.renderer().render(Graph.scene(), Graph.camera()); } catch(e) {}
             }
         }
 
@@ -1492,8 +1786,8 @@
                         calculateCognitiveLinks(); 
                         populateSalaDropdown();
                         renderSemanticSalas();
-                        Graph.graphData(brainData);
-                        Graph.d3ReheatSimulation();
+                        if (Graph) Graph.graphData(brainData);
+                        if (Graph) Graph.d3ReheatSimulation();
                         showToast("Sistema Cognitivo exumado com sucesso.");
                     } else {
                         showToast("Ficheiro corrompido ou formato inválido.");
@@ -1535,17 +1829,18 @@
             initGraph();
             calculateCognitiveLinks();
             applyLociBackground();
-            Graph.graphData(brainData);
+            if (Graph) Graph.graphData(brainData);
             
-            // Inicia o motor de animação e pulso sem parar
             animateSuperSynapses();
             
             initDraggablePanels();
         };
 
         window.addEventListener('resize', () => {
-            Graph.width(window.innerWidth);
-            Graph.height(window.innerHeight);
+            if (Graph && Graph.width) {
+                Graph.width(window.innerWidth);
+                Graph.height(window.innerHeight);
+            }
         });
 
     </script>

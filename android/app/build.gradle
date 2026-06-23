@@ -1,9 +1,22 @@
 apply plugin: 'com.android.application'
 
 def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('keystore.properties')
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+// Prioridade: variáveis de ambiente > home dir > projeto
+if (System.getenv("DETETIVE_STORE_PASSWORD") != null) {
+    keystoreProperties['storePassword'] = System.getenv("DETETIVE_STORE_PASSWORD")
+    keystoreProperties['keyPassword'] = System.getenv("DETETIVE_KEY_PASSWORD")
+    keystoreProperties['keyAlias'] = System.getenv("DETETIVE_KEY_ALIAS")
+    keystoreProperties['storeFile'] = System.getenv("DETETIVE_STORE_FILE")
+} else {
+    def homeProps = rootProject.file(System.getProperty("user.home") + "/.android/detetive-keystore.properties")
+    if (homeProps.exists()) {
+        keystoreProperties.load(new FileInputStream(homeProps))
+    } else {
+        def keystorePropertiesFile = rootProject.file('keystore.properties')
+        if (keystorePropertiesFile.exists()) {
+            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+        }
+    }
 }
 
 android {
@@ -11,15 +24,17 @@ android {
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.detetive.app"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        minSdk rootProject.ext.minSdkVersion
+        targetSdk rootProject.ext.targetSdkVersion
+        versionCode 4
+        versionName "1.16.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // ATENÇÃO: keystore.properties contém credenciais em texto plano.
+    // Considere usar variáveis de ambiente: keyAlias = System.getenv("DETETIVE_KEY_ALIAS")
     signingConfigs {
         release {
             keyAlias keystoreProperties['keyAlias']
@@ -31,8 +46,16 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        market {
+            initWith release
+            matchingFallbacks = ['release']
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            versionNameSuffix "-market"
         }
     }
 }
@@ -64,4 +87,9 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// Force UTF-8 for Java source files
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
 }

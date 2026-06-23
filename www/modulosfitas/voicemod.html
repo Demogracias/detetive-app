@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Módulo Camaleão de Voz</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#c0c0c8;font-family:'Courier New',monospace;overflow:hidden;height:100vh;width:100vw}
+.lock-screen{position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.lock-screen h1{font-size:14px;color:#00ff88;text-transform:uppercase;letter-spacing:3px;margin-bottom:20px;text-shadow:0 0 10px #00ff8844}
+.lock-screen input{background:#111;border:1px solid #333;color:#c0c0c8;padding:8px 12px;font-size:11px;font-family:inherit;width:200px;text-align:center;outline:none}
+.lock-screen input:focus{border-color:#00ff88}
+.lock-screen button{background:#00ff8822;border:1px solid #00ff88;color:#00ff88;padding:6px 20px;font-size:10px;font-family:inherit;cursor:pointer;margin-top:10px;text-transform:uppercase;letter-spacing:2px}
+.lock-screen button:hover{background:#00ff8844}
+.lock-screen .error{color:#ff4444;font-size:9px;margin-top:8px;min-height:14px}
+.main{display:none;flex-direction:column;height:100vh;padding:6px;gap:4px}
+.main.active{display:flex}
+.header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-bottom:1px solid #222;flex-shrink:0}
+.header h2{font-size:10px;color:#ff8844;text-transform:uppercase;letter-spacing:2px}
+.header .status{font-size:7px;padding:2px 6px;border-radius:3px}
+.status.idle{background:#222;color:#666}
+.status.active{background:#00ff8822;color:#00ff88}
+.status.error{background:#ff444422;color:#ff4444}
+.controls{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-height:0;overflow-y:auto}
+.col{flex:1;min-width:120px}
+.col h3{font-size:8px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;border-bottom:1px solid #222;padding-bottom:2px}
+.slider-group{margin-bottom:6px}
+.slider-group label{display:flex;justify-content:space-between;font-size:7px;color:#888}
+.slider-group input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:#222;outline:none;border-radius:2px}
+.slider-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height:8px;background:#ff8844;border-radius:50%;cursor:pointer}
+.toggle-group{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.toggle-group button{font-size:6px;padding:3px 8px;background:#111;border:1px solid #333;color:#888;cursor:pointer;font-family:inherit;border-radius:2px}
+.toggle-group button.active{background:#ff884422;border-color:#ff8844;color:#ff8844}
+.toggle-group button:hover{border-color:#666}
+.presets{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px}
+.presets button{font-size:6px;padding:3px 8px;background:#1a1a2e;border:1px solid #333;color:#888;cursor:pointer;font-family:inherit;border-radius:2px;text-transform:uppercase;letter-spacing:1px}
+.presets button:hover{border-color:#ff8844;color:#ff8844}
+.btn-group{display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0}
+.btn-group button{font-size:7px;padding:4px 12px;border:1px solid #333;color:#aaa;cursor:pointer;font-family:inherit;border-radius:2px;background:#111;text-transform:uppercase;letter-spacing:1px}
+.btn-group button:hover{border-color:#888;color:#ddd}
+.btn-group button.primary{background:#00ff8822;border-color:#00ff88;color:#00ff88}
+.btn-group button.primary:hover{background:#00ff8844}
+.btn-group button.danger{background:#ff444422;border-color:#ff4444;color:#ff4444}
+.btn-group button.danger:hover{background:#ff444444}
+.btn-group button:disabled{opacity:.3;cursor:not-allowed}
+.file-area{font-size:7px;color:#666;padding:4px 0}
+.file-area input{font-size:7px;color:#888;font-family:inherit}
+.vis-container{flex-shrink:0;height:30px;background:#000;border:1px solid #222;position:relative;overflow:hidden}
+.vis-container canvas{width:100%;height:100%}
+.mode-select{display:flex;gap:4px;margin-bottom:4px}
+.mode-select button{font-size:7px;padding:4px 12px;background:#111;border:1px solid #333;color:#888;cursor:pointer;font-family:inherit;border-radius:2px}
+.mode-select button.active{background:#ff884422;border-color:#ff8844;color:#ff8844}
+.eq-display{font-size:6px;color:#444;text-align:center;padding:2px}
+</style>
+</head>
+<body>
+
+<div class="lock-screen" id="lockScreen">
+    <h1>🔊 Módulo Camaleão</h1>
+    <input type="password" id="passwordInput" placeholder="senha de acesso" maxlength="32" autocomplete="off">
+    <button id="unlockBtn">DESBLOQUEAR</button>
+    <div class="error" id="lockError"></div>
+</div>
+
+<div class="main" id="mainApp">
+    <div class="header">
+        <h2>🔊 Camaleão de Voz v2.0</h2>
+        <span class="status idle" id="statusBadge">⏸ INATIVO</span>
+    </div>
+
+    <div class="mode-select">
+        <button class="active" data-mode="realtime" onclick="setMode('realtime')">🎤 Tempo Real</button>
+        <button data-mode="file" onclick="setMode('file')">📁 Arquivo</button>
+    </div>
+
+    <div class="controls" id="controlsArea">
+        <div class="col">
+            <h3>Tom & Filtros</h3>
+            <div class="slider-group">
+                <label><span>Tom (semitons)</span><span id="pitchVal">0</span></label>
+                <input type="range" id="pitchSlider" min="-12" max="12" value="0" step="1">
+            </div>
+            <div class="slider-group">
+                <label><span>Filtro Passa-Baixa</span><span id="lowpassVal">100</span></label>
+                <input type="range" id="lowpassSlider" min="0" max="100" value="100" step="1">
+            </div>
+            <div class="toggle-group">
+                <button data-filter="lowcut" onclick="toggleFilter('lowcut')">Corte Subgraves</button>
+                <button data-filter="highcut" onclick="toggleFilter('highcut')">Corte Sibilância</button>
+            </div>
+            <h3 style="margin-top:6px">Robot & Gate</h3>
+            <div class="toggle-group">
+                <button id="robotToggle" onclick="toggleRobot()">🤖 Modo Robot</button>
+            </div>
+            <div class="slider-group">
+                <label><span>Noise Gate</span><span id="gateVal">0</span></label>
+                <input type="range" id="gateSlider" min="0" max="100" value="0" step="1">
+            </div>
+        </div>
+
+        <div class="col">
+            <h3>Distorção & Espaço</h3>
+            <div class="slider-group">
+                <label><span>Distorção</span><span id="distVal">0</span></label>
+                <input type="range" id="distSlider" min="0" max="100" value="0" step="1">
+            </div>
+            <div class="slider-group">
+                <label><span>Eco (feedback)</span><span id="echoVal">0</span></label>
+                <input type="range" id="echoSlider" min="0" max="100" value="0" step="1">
+            </div>
+            <div class="slider-group">
+                <label><span>Reverb (caverna)</span><span id="revVal">0</span></label>
+                <input type="range" id="revSlider" min="0" max="100" value="0" step="1">
+            </div>
+            <div class="slider-group">
+                <label><span>Volume</span><span id="volVal">80</span></label>
+                <input type="range" id="volSlider" min="0" max="100" value="80" step="1">
+            </div>
+        </div>
+
+        <div class="col" style="min-width:140px">
+            <h3>Presets</h3>
+            <div class="presets">
+                <button onclick="applyPreset('neutro')">Neutro</button>
+                <button onclick="applyPreset('sombrio')">Sombrio</button>
+                <button onclick="applyPreset('distorcido')">Distorcido</button>
+                <button onclick="applyPreset('robot')">Robô</button>
+                <button onclick="applyPreset('demonio')">Demoníaco</button>
+                <button onclick="applyPreset('chipmunk')">Chipmunk</button>
+                <button onclick="applyPreset('grave')">Voz Grave</button>
+                <button onclick="applyPreset('abissal')">Abissal</button>
+            </div>
+            <h3>Controles</h3>
+            <div class="btn-group" id="realtimeControls">
+                <button class="primary" id="btnStart" onclick="startRealtime()">🎤 Iniciar</button>
+                <button class="danger" id="btnStop" onclick="stopRealtime()" disabled>⏹ Parar</button>
+            </div>
+            <div class="btn-group" id="fileControls" style="display:none">
+                <button onclick="selectFile()">📂 Selecionar</button>
+                <button class="primary" id="btnProcess" onclick="processFile()">⚙ Processar</button>
+                <button id="btnPlayFile" onclick="playFile()" disabled>▶ Ouvir</button>
+                <button id="btnSaveFile" onclick="saveFile()" disabled>💾 Salvar</button>
+            </div>
+            <div class="file-area" id="fileInfo">Nenhum arquivo selecionado</div>
+        </div>
+    </div>
+
+    <div class="vis-container">
+        <canvas id="waveCanvas"></canvas>
+    </div>
+    <div class="eq-display" id="eqDisplay">Tom 0 · LP 100% · Dist 0 · Eco 0 · Rev 0 · Gate 0</div>
+</div>
+
+<script>
+// ===== PASSWORD =====
+var MODULE_PASSWORD = 'VOXCHAMALEON';
+
+document.getElementById('unlockBtn').addEventListener('click', unlockModule);
+document.getElementById('passwordInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') unlockModule();
+});
+
+function unlockModule() {
+    var pw = document.getElementById('passwordInput').value.trim().toUpperCase();
+    if (pw === MODULE_PASSWORD) {
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('mainApp').classList.add('active');
+        initAudio();
+    } else {
+        document.getElementById('lockError').textContent = '❌ Senha incorreta!';
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('passwordInput').focus();
+    }
+}
+
+// ===== STATE =====
+var audioCtx = null;
+var micStream = null;
+var scriptNode = null;
+var sourceNode = null;
+var isRealtime = false;
+var mode = 'realtime';
+
+// DSP buffers
+var pitchBufSize = 8192;
+var pitchBuf = null;
+var pitchW = 0;
+var pitchR1 = 0, pitchR2 = 0;
+var grainWindow = null;
+
+var echoBufSize = 0;
+var echoBuf = null;
+var echoW = 0;
+
+var revBufSize = 0;
+var revBuf = null;
+var revW = 0;
+
+// Filter state
+var hpX=0, hpY=0;
+var lpY=0;
+
+var effectState = {
+    pitch: 0,
+    lowpass: 100,
+    gate: 0,
+    lowcut: false,
+    highcut: false,
+    robot: false,
+    dist: 0,
+    echo: 0,
+    reverb: 0,
+    volume: 80
+};
+
+var fileAudioBuffer = null;
+var fileProcessedBuffer = null;
+var fileSourceNode = null;
+
+// ===== AUDIO INIT =====
+function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Precompute raised-cosine window for grain crossfade
+    var gLen = 2048;
+    grainWindow = new Float32Array(gLen);
+    for (var i = 0; i < gLen; i++) {
+        grainWindow[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (gLen - 1)));
+    }
+    setupSliders();
+    setupCanvas();
+}
+
+function setupSliders() {
+    var ids = ['pitch','lowpass','gate','dist','echo','rev','vol'];
+    ids.forEach(function(s) {
+        var el = document.getElementById(s + 'Slider');
+        if (!el) return;
+        el.addEventListener('input', function() {
+            var v = parseFloat(this.value);
+            effectState[s] = v;
+            document.getElementById(s + 'Val').textContent = v;
+            updateEqDisplay();
+        });
+    });
+}
+
+function updateEqDisplay() {
+    document.getElementById('eqDisplay').textContent =
+        'Tom ' + effectState.pitch + ' · LP ' + effectState.lowpass + '% · Dist ' + effectState.dist +
+        ' · Eco ' + effectState.echo + ' · Rev ' + effectState.reverb + ' · Gate ' + effectState.gate;
+}
+
+function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-select button').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.mode === m);
+    });
+    document.getElementById('realtimeControls').style.display = m === 'realtime' ? '' : 'none';
+    document.getElementById('fileControls').style.display = m === 'file' ? '' : 'none';
+    if (isRealtime) stopRealtime();
+}
+
+function toggleFilter(name) {
+    effectState[name] = !effectState[name];
+    var btn = document.querySelector('[data-filter="' + name + '"]');
+    if (btn) btn.classList.toggle('active', effectState[name]);
+}
+
+function toggleRobot() {
+    effectState.robot = !effectState.robot;
+    document.getElementById('robotToggle').classList.toggle('active', effectState.robot);
+}
+
+// ===== PRESETS =====
+function applyPreset(name) {
+    var p;
+    switch(name) {
+        case 'neutro':    p={pitch:0,lowpass:100,gate:0,dist:0,echo:0,rev:0,volume:80,robot:false,lowcut:false,highcut:false}; break;
+        case 'sombrio':   p={pitch:-5,lowpass:40,gate:15,dist:50,echo:40,rev:70,volume:85,robot:false,lowcut:true,highcut:false}; break;
+        case 'distorcido':p={pitch:-3,lowpass:60,gate:10,dist:85,echo:25,rev:15,volume:90,robot:false,lowcut:false,highcut:true}; break;
+        case 'robot':     p={pitch:0,lowpass:100,gate:0,dist:0,echo:0,rev:0,volume:80,robot:true,lowcut:false,highcut:false}; break;
+        case 'demonio':   p={pitch:-8,lowpass:25,gate:25,dist:70,echo:55,rev:85,volume:95,robot:false,lowcut:true,highcut:false}; break;
+        case 'chipmunk':  p={pitch:8,lowpass:100,gate:0,dist:0,echo:0,rev:0,volume:75,robot:false,lowcut:false,highcut:false}; break;
+        case 'grave':     p={pitch:-6,lowpass:50,gate:10,dist:10,echo:15,rev:30,volume:85,robot:false,lowcut:true,highcut:false}; break;
+        case 'abissal':   p={pitch:-10,lowpass:15,gate:30,dist:60,echo:60,rev:90,volume:95,robot:false,lowcut:true,highcut:false}; break;
+        default: return;
+    }
+    Object.keys(p).forEach(function(k) {
+        effectState[k] = p[k];
+        var slider = document.getElementById(k + 'Slider');
+        if (slider) { slider.value = p[k]; document.getElementById(k + 'Val').textContent = p[k]; }
+        var btn = document.querySelector('[data-filter="' + k + '"]');
+        if (btn) btn.classList.toggle('active', p[k]);
+    });
+    if (p.robot) document.getElementById('robotToggle').classList.add('active');
+    else document.getElementById('robotToggle').classList.remove('active');
+    updateEqDisplay();
+}
+
+// ===== DUAL-GRAIN PITCH SHIFTER =====
+function pitchShiftProcess(sample, ratio, buf, bufSize, wIdx, r1, r2, windowTbl) {
+    // Write current sample
+    buf[wIdx] = sample;
+    var nw = (wIdx + 1) % bufSize;
+
+    // Read grain 1
+    var pos1 = r1;
+    var i1 = Math.floor(pos1);
+    var f1 = pos1 - i1;
+    var n1 = (i1 + 1) % bufSize;
+
+    // Cubic Hermite interpolation
+    var im1 = (i1 - 1 + bufSize) % bufSize;
+    var ip2 = (i1 + 2) % bufSize;
+    var ym1 = buf[im1], y0 = buf[i1], y1 = buf[n1], y2 = buf[ip2];
+
+    var c0 = y0;
+    var c1 = 0.5 * (y1 - ym1);
+    var c2 = ym1 - 2.5 * y0 + 2 * y1 - 0.5 * y2;
+    var c3 = 0.5 * (y2 - ym1) + 1.5 * (y0 - y1);
+    var g1 = ((c3 * f1 + c2) * f1 + c1) * f1 + c0;
+
+    // Read grain 2 (offset by half buffer)
+    var halfSize = bufSize >> 1;
+    var pos2 = (r1 + halfSize) % bufSize;
+
+    var i2 = Math.floor(pos2);
+    var f2 = pos2 - i2;
+    var n2 = (i2 + 1) % bufSize;
+
+    var im2 = (i2 - 1 + bufSize) % bufSize;
+    var ip2b = (i2 + 2) % bufSize;
+    var ym2 = buf[im2], y0b = buf[i2], y1b = buf[n2], y2b = buf[ip2b];
+
+    var c0b = y0b;
+    var c1b = 0.5 * (y1b - ym2);
+    var c2b = ym2 - 2.5 * y0b + 2 * y1b - 0.5 * y2b;
+    var c3b = 0.5 * (y2b - ym2) + 1.5 * (y0b - y1b);
+    var g2 = ((c3b * f2 + c2b) * f2 + c1b) * f2 + c0b;
+
+    // Cross-fade using raised cosine window
+    var grainPos = wIdx % halfSize;
+    var winIdx = Math.floor(grainPos / halfSize * (windowTbl.length - 1));
+    var win = windowTbl[winIdx] || 0;
+    var out = g1 * (1 - win) + g2 * win;
+
+    // Advance read pointers
+    var nr1 = (r1 + ratio) % bufSize;
+
+    return {sample: out, writeIdx: nw, readIdx1: nr1};
+}
+
+// ===== REAL-TIME PROCESSING =====
+function startRealtime() {
+    if (isRealtime) return;
+    if (!audioCtx) initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        micStream = stream;
+        sourceNode = audioCtx.createMediaStreamSource(stream);
+        scriptNode = audioCtx.createScriptProcessor(1024, 1, 1);
+
+        var sr = audioCtx.sampleRate;
+
+        // Init pitch buffer
+        pitchBufSize = 8192;
+        pitchBuf = new Float32Array(pitchBufSize);
+        pitchW = 0;
+
+        // Init echo buffer (300ms)
+        echoBufSize = Math.floor(sr * 0.3);
+        echoBuf = new Float32Array(echoBufSize);
+        echoW = 0;
+
+        // Init reverb buffer (500ms)
+        revBufSize = Math.floor(sr * 0.5);
+        revBuf = new Float32Array(revBufSize);
+        revW = 0;
+
+        hpX = 0; hpY = 0; lpY = 0;
+
+        scriptNode.onaudioprocess = function(e) {
+            var input = e.inputBuffer.getChannelData(0);
+            var output = e.outputBuffer.getChannelData(0);
+            var sr = audioCtx.sampleRate;
+            var len = input.length;
+
+            for (var i = 0; i < len; i++) {
+                var sample = input[i];
+
+                // 1. Noise Gate
+                if (effectState.gate > 0) {
+                    var thresh = effectState.gate / 100;
+                    var rms = Math.abs(sample);
+                    if (rms < thresh * 0.5) sample = 0;
+                }
+
+                // 2. Low-cut HPF ~80Hz (remove subsonic rumble)
+                if (effectState.lowcut) {
+                    var a = 0.988;
+                    var y = a * hpY + a * (sample - hpX);
+                    hpX = sample; hpY = y; sample = y;
+                } else { hpX = 0; hpY = 0; }
+
+                // 3. Low-pass filter (variable cutoff)
+                if (effectState.lowpass < 100) {
+                    var bw = effectState.lowpass / 100;
+                    var alpha = 0.02 + bw * 0.4; // 0.02 (~140Hz) to 0.42 (~3kHz)
+                    var y = alpha * sample + (1 - alpha) * lpY;
+                    lpY = y; sample = y;
+                } else { lpY = 0; }
+
+                // 4. High-cut LPF ~4kHz (remove sibilance)
+                if (effectState.highcut) {
+                    var hcA = 0.65;
+                    var hy = hcA * sample + (1 - hcA) * (typeof hcY === 'undefined' ? 0 : hcY);
+                    hcY = hy; sample = hy;
+                } else { hcY = 0; }
+
+                // 5. Pitch shift (dual-grain with crossfade)
+                if (effectState.pitch !== 0) {
+                    var ratio = Math.pow(2, effectState.pitch / 12);
+                    var result = pitchShiftProcess(sample, ratio, pitchBuf, pitchBufSize, pitchW, pitchW * 0.5, 0, grainWindow);
+                    sample = result.sample;
+                    pitchW = result.writeIdx;
+                    // Don't use result.readIdx1, we position grain2 relative to grain1 inside the function
+                }
+
+                // 6. Robot mode
+                if (effectState.robot) {
+                    if (sample > 0.05) sample = 0.5;
+                    else if (sample < -0.05) sample = -0.5;
+                    else sample = 0;
+                }
+
+                // 7. Distortion
+                if (effectState.dist > 0) {
+                    var drive = 1 + (effectState.dist / 100) * 25;
+                    sample = Math.tanh(sample * drive);
+                }
+
+                // 8. Echo (dedicated buffer)
+                if (effectState.echo > 0) {
+                    var echoMix = effectState.echo / 100 * 0.6;
+                    var delayed = echoBuf[echoW] || 0;
+                    echoBuf[echoW] = sample + delayed * 0.45;
+                    echoW = (echoW + 1) % echoBufSize;
+                    sample = sample + delayed * echoMix;
+                }
+
+                // 9. Reverb (dedicated buffer, multi-tap)
+                if (effectState.reverb > 0) {
+                    var revMix = effectState.reverb / 100 * 0.5;
+                    revBuf[revW] = sample;
+                    revW = (revW + 1) % revBufSize;
+                    var taps = [80, 160, 280, 420]; // ms
+                    var revOut = 0;
+                    for (var t = 0; t < taps.length; t++) {
+                        var tapSamps = Math.floor(sr * taps[t] / 1000);
+                        var idx = (revW - tapSamps + revBufSize) % revBufSize;
+                        revOut += (revBuf[idx] || 0) * Math.pow(0.55, t + 1);
+                    }
+                    sample = sample + revOut * revMix;
+                }
+
+                // 10. Volume
+                sample = sample * (effectState.volume / 100);
+                if (sample > 0.99) sample = 0.99;
+                if (sample < -0.99) sample = -0.99;
+
+                output[i] = sample;
+            }
+
+            drawWaveform(input, output, len);
+        };
+
+        sourceNode.connect(scriptNode);
+        scriptNode.connect(audioCtx.destination);
+
+        isRealtime = true;
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('btnStop').disabled = false;
+        setStatus('active', '🎤 PROCESSANDO');
+    }).catch(function(err) {
+        setStatus('error', '❌ Erro: ' + err.message);
+    });
+}
+
+function stopRealtime() {
+    if (!isRealtime) return;
+    if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
+    if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+    if (micStream) { micStream.getTracks().forEach(function(t) { t.stop(); }); micStream = null; }
+    hpX = 0; hpY = 0; lpY = 0; hcY = 0;
+    isRealtime = false;
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+    setStatus('idle', '⏸ INATIVO');
+}
+
+// ===== FILE MODE =====
+var fileInput = null;
+var originalFileBlob = null;
+
+function selectFile() {
+    if (!fileInput) {
+        fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.wav,.mp3,.ogg,.webm';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+    }
+    fileInput.onchange = function() {
+        var file = fileInput.files[0];
+        if (!file) return;
+        originalFileBlob = file;
+        document.getElementById('fileInfo').textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+        document.getElementById('btnProcess').disabled = false;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            audioCtx.decodeAudioData(e.target.result, function(buf) {
+                fileAudioBuffer = buf;
+                document.getElementById('fileInfo').textContent += ' · ' + buf.duration.toFixed(1) + 's';
+                document.getElementById('btnPlayFile').disabled = true;
+                document.getElementById('btnSaveFile').disabled = true;
+            }, function() {
+                document.getElementById('fileInfo').textContent = '❌ Erro ao decodificar áudio';
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    };
+    fileInput.click();
+}
+
+function processFile() {
+    if (!fileAudioBuffer) return;
+    document.getElementById('btnProcess').disabled = true;
+    setStatus('active', '⚙ PROCESSANDO...');
+
+    var sr = audioCtx.sampleRate;
+    var len = fileAudioBuffer.length;
+    var inputData = fileAudioBuffer.getChannelData(0);
+    var outputData = new Float32Array(len);
+
+    // DSP state for file processing
+    var pb = new Float32Array(8192);
+    var pw = 0;
+    var eb = new Float32Array(Math.floor(sr * 0.3));
+    var ew = 0;
+    var rb = new Float32Array(Math.floor(sr * 0.5));
+    var rw = 0;
+    var lpx = 0, lpy = 0, lpy2 = 0, hcy2 = 0;
+
+    var grainWin = grainWindow;
+
+    for (var i = 0; i < len; i++) {
+        var s = inputData[i];
+
+        // Gate
+        if (effectState.gate > 0) {
+            if (Math.abs(s) < (effectState.gate / 100) * 0.5) s = 0;
+        }
+
+        // Low-cut
+        if (effectState.lowcut) {
+            var a = 0.988;
+            var y = a * lpy + a * (s - lpx);
+            lpx = s; lpy = y; s = y;
+        } else { lpx = 0; lpy = 0; }
+
+        // Lowpass
+        if (effectState.lowpass < 100) {
+            var bw = effectState.lowpass / 100;
+            var alpha = 0.02 + bw * 0.4;
+            var y = alpha * s + (1 - alpha) * lpy2;
+            lpy2 = y; s = y;
+        } else { lpy2 = 0; }
+
+        // High-cut
+        if (effectState.highcut) {
+            var hcA = 0.65;
+            var hy = hcA * s + (1 - hcA) * hcy2;
+            hcy2 = hy; s = hy;
+        } else { hcy2 = 0; }
+
+        // Pitch shift
+        if (effectState.pitch !== 0) {
+            var ratio = Math.pow(2, effectState.pitch / 12);
+            var result = pitchShiftProcess(s, ratio, pb, 8192, pw, pw * 0.5, 0, grainWin);
+            s = result.sample;
+            pw = result.writeIdx;
+        }
+
+        // Robot
+        if (effectState.robot) {
+            if (s > 0.05) s = 0.5;
+            else if (s < -0.05) s = -0.5;
+            else s = 0;
+        }
+
+        // Distortion
+        if (effectState.dist > 0) {
+            s = Math.tanh(s * (1 + (effectState.dist / 100) * 25));
+        }
+
+        // Echo
+        var echoMix = (effectState.echo / 100) * 0.6;
+        var delayed = eb[ew] || 0;
+        eb[ew] = s + delayed * 0.45;
+        ew = (ew + 1) % eb.length;
+        s = s + delayed * echoMix;
+
+        // Reverb
+        if (effectState.reverb > 0) {
+            var revMix = effectState.reverb / 100 * 0.5;
+            rb[rw] = s;
+            rw = (rw + 1) % rb.length;
+            var ro = 0;
+            for (var t = 0; t < 4; t++) {
+                var td = Math.floor(sr * (80 + t * 100) / 1000);
+                var ti = (rw - td + rb.length) % rb.length;
+                ro += (rb[ti] || 0) * Math.pow(0.55, t + 1);
+            }
+            s = s + ro * revMix;
+        }
+
+        // Volume
+        s = s * (effectState.volume / 100);
+        if (s > 0.99) s = 0.99; if (s < -0.99) s = -0.99;
+        outputData[i] = s;
+    }
+
+    fileProcessedBuffer = audioCtx.createBuffer(1, len, sr);
+    fileProcessedBuffer.getChannelData(0).set(outputData);
+
+    document.getElementById('btnProcess').disabled = false;
+    document.getElementById('btnPlayFile').disabled = false;
+    document.getElementById('btnSaveFile').disabled = false;
+    setStatus('idle', '✅ PROCESSADO');
+}
+
+function playFile() {
+    if (!fileProcessedBuffer) return;
+    if (fileSourceNode) { fileSourceNode.stop(); fileSourceNode = null; }
+    fileSourceNode = audioCtx.createBufferSource();
+    fileSourceNode.buffer = fileProcessedBuffer;
+    fileSourceNode.connect(audioCtx.destination);
+    fileSourceNode.start(0);
+    setStatus('active', '▶ REPRODUZINDO');
+    fileSourceNode.onended = function() {
+        setStatus('idle', '⏸ FINALIZADO');
+        fileSourceNode = null;
+    };
+}
+
+function saveFile() {
+    if (!fileProcessedBuffer) return;
+    var numChannels = 1;
+    var sampleRate = fileProcessedBuffer.sampleRate;
+    var data = fileProcessedBuffer.getChannelData(0);
+    var numSamples = data.length;
+    var buffer = new ArrayBuffer(44 + numSamples * 2);
+    var view = new DataView(buffer);
+
+    function writeString(offset, str) {
+        for (var i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * 2, true);
+    view.setUint16(32, numChannels * 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    var offset = 44;
+    for (var i = 0; i < numSamples; i++) {
+        var s = Math.max(-1, Math.min(1, data[i]));
+        s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        view.setInt16(offset, s, true);
+        offset += 2;
+    }
+
+    var blob = new Blob([buffer], { type: 'audio/wav' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'voz_processada_' + Date.now() + '.wav';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus('idle', '💾 SALVO');
+}
+
+// ===== WAVEFORM VISUALIZER =====
+var canvas = null;
+var ctx2d = null;
+
+function setupCanvas() {
+    canvas = document.getElementById('waveCanvas');
+    if (!canvas) return;
+    ctx2d = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    drawIdleWaveform();
+}
+
+function resizeCanvas() {
+    if (!canvas) return;
+    var rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight || 30;
+}
+
+function drawWaveform(input, output, len) {
+    if (!ctx2d || !canvas) return;
+    var w = canvas.width, h = canvas.height;
+    ctx2d.fillStyle = '#000';
+    ctx2d.fillRect(0, 0, w, h);
+
+    // Output waveform (brighter)
+    var step = Math.max(1, Math.floor(len / w));
+    ctx2d.strokeStyle = '#ff8844';
+    ctx2d.lineWidth = 1.5;
+    ctx2d.beginPath();
+    for (var x = 0; x < w; x++) {
+        var idx = Math.floor(x * step);
+        if (idx >= len) break;
+        var s = output[idx];
+        var y = h / 2 + s * (h / 2 - 2);
+        if (x === 0) ctx2d.moveTo(x, y);
+        else ctx2d.lineTo(x, y);
+    }
+    ctx2d.stroke();
+
+    // Input reference (faint grey)
+    ctx2d.strokeStyle = '#444';
+    ctx2d.lineWidth = 0.5;
+    ctx2d.beginPath();
+    for (var x = 0; x < w; x++) {
+        var idx = Math.floor(x * step);
+        if (idx >= len) break;
+        var s = input[idx];
+        var y = h / 2 + s * (h / 2 - 2);
+        if (x === 0) ctx2d.moveTo(x, y);
+        else ctx2d.lineTo(x, y);
+    }
+    ctx2d.stroke();
+}
+
+function drawIdleWaveform() {
+    if (!ctx2d || !canvas) return;
+    var w = canvas.width, h = canvas.height;
+    ctx2d.fillStyle = '#000';
+    ctx2d.fillRect(0, 0, w, h);
+    ctx2d.strokeStyle = '#222';
+    ctx2d.lineWidth = 0.5;
+    ctx2d.beginPath();
+    ctx2d.moveTo(0, h/2);
+    ctx2d.lineTo(w, h/2);
+    ctx2d.stroke();
+    ctx2d.fillStyle = '#333';
+    ctx2d.font = '6px monospace';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText('Aguardando áudio...', w/2, h/2 + 2);
+}
+
+function setStatus(type, msg) {
+    var badge = document.getElementById('statusBadge');
+    if (!badge) return;
+    badge.textContent = msg;
+    badge.className = 'status ' + type;
+}
+</script>
+</body>
+</html>

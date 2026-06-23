@@ -1,2 +1,0 @@
-[console_scripts]
-enem = enem.__main__:main

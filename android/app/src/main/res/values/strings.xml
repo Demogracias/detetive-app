@@ -1,7 +1,5 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Detetive</string>
-    <string name="title_activity_main">Detetive</string>
-    <string name="package_name">com.detetive.app</string>
-    <string name="custom_url_scheme">com.detetive.app</string>
+    <string name="app_name">Agência Noir</string>
+    <string name="title_activity_main">Agência Noir</string>
 </resources>
