@@ -17,3 +17,8 @@ android/keystore.properties
 *.zim
 *.exe
 *.bin
+# Original large asset files (split into parts)
+assets.b64.js
+assets-classicas.js
+www/assets.b64.js
+www/assets-classicas.js
