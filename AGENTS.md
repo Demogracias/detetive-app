@@ -10,7 +10,8 @@ App Android completo (~14700 linhas HTML/CSS/JS em arquivo único) para investig
 - **Backend**: Supabase (PostgreSQL + Auth + REST)
 - **Auth**: Email/senha + Google OAuth via Supabase Auth
 - **Build**: Gradle 8.13 (downgraded de 8.14.3 por erro de extração JNI nativo)
-- **Git**: branch `master`, remote `origin` → `github.com/Demogracias/detetive-app`
+- **Git**: branch `main` + `develop` com Git Flow leve, remote `origin` → `github.com/Demogracias/detetive-app`
+- **Docs**: ver `CONTRIBUTING.md` e `README.md` para workflow completo
 
 ## Credenciais (fora do git)
 - `supabase-config.js` — `window.__SUPABASE_URL` + `window.__SUPABASE_ANON_KEY` (gitignorado)
@@ -58,6 +59,50 @@ cd android
 - Token: `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` (usuário Demogracias)
 - Repo: `https://github.com/Demogracias/detetive-app`
 - CI/CD: GitHub Actions configurado em `.github/workflows/build.yml`
+
+## Git Workflow (OBRIGATÓRIO — seguir SEMPRE)
+
+### Branches
+| Branch | Uso | Origem | PR para |
+|--------|-----|--------|---------|
+| `main` | Produção (código estável) | — | — |
+| `develop` | Integração de funcionalidades | `main` | `main` |
+| `feature/<nome>` | Nova funcionalidade | `develop` | `develop` |
+| `fix/<nome>` | Correção de bug | `develop` | `develop` |
+
+### Regras de Commits
+- **Commits atômicos:** cada commit = uma única mudança lógica (se der revert, desfaz uma coisa só)
+- **Mensagem descritiva:** usar prefixos `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `chore:`, `test:`, `perf:`
+- **Formato:** `tipo(escopo): ação no imperativo` — ex: `feat(auth): add Google OAuth login`
+- **Nunca** misturar formatação com lógica no mesmo commit
+- **Nunca** commitar secrets/credenciais/tokens
+
+### Fluxo para novas tarefas
+1. `git checkout develop && git pull`
+2. `git checkout -b feature/<nome-da-feature>`
+3. Fazer commits atômicos
+4. `git push origin feature/<nome>`
+5. Abrir Pull Request para `develop` usando template em `.github/PULL_REQUEST_TEMPLATE.md`
+6. Após merge em `develop`, PR de `develop` → `main` quando estável
+
+### Pull Requests
+- Título segue `tipo(escopo): descrição`
+- Descrição explica **o que** e **por que**
+- Máximo ~300 linhas por PR
+- Usar template em `.github/PULL_REQUEST_TEMPLATE.md`
+
+### Code Review Checklist
+- [ ] Commits atômicos com mensagens descritivas
+- [ ] Nenhum secret/token exposto
+- [ ] Código segue estilo do projeto (sem comentários, modais não-bloqueantes, etc.)
+- [ ] Testado localmente (build + funcionalidade básica)
+
+### Convenções de Código (reforço)
+- Sem comentários em código (a menos que explicitamente solicitado)
+- `window.alert/confirm/prompt` sobrescritos por modais não-bloqueantes
+- Backdoor TURING protegido por `window.__DEV__` (padrão `false`)
+- Variáveis globais: `chatHistory`, `subjects`, `appointments`, `studyLogs`, `custodyLog`
+- Minify desligado durante desenvolvimento (ligar só no release final)
 
 ## Convenções de Código
 - Sem comentários em código (a menos que explicitamente solicitado)
