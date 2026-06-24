@@ -42,6 +42,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js" onerror="cdnFallback(this)" data-fallback="_chart_js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" onerror="cdnFallback(this)" data-fallback="_jszip"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://browser.sentry-cdn.com/7.120.0/bundle.min.js" crossorigin="anonymous"></script>
+    <script>Sentry.init({ dsn: 'https://8656afef8a718efcb6ffb02c82e5c15c@o4511619711041536.ingest.us.sentry.io/4511619722510336', tracesSampleRate: 0.2 });</script>
  
      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onerror="cdnFallback(this)" data-fallback="_fa_css">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet" onerror="cdnFallback(this)" data-fallback="_gf_css_index">
@@ -2564,6 +2566,7 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
     ]);
 
     let agentName = localStorage.getItem('noir_agent_name') || '';
+    if (typeof Sentry !== 'undefined') Sentry.setUser({ id: agentName || 'anon' });
     let birthDate = localStorage.getItem('noir_birth_date') || '';
     let lastBirthdayBonusYear = localStorage.getItem('noir_last_birthday_year') || '';
     
