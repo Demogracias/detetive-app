@@ -56,7 +56,7 @@ cd android
 - **Scorched Earth**: rollback completo se qualquer cifragem falhar (backup localStorage antes da operação)
 
 ## GitHub
-- Token: `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` (usuário Demogracias)
+- Token: `[VER .secrets NO LOCAL]` (usuário Demogracias — NÃO COMMITAR, armazenado em `../.secrets` fora do repo)
 - Repo: `https://github.com/Demogracias/detetive-app`
 - CI/CD: GitHub Actions configurado em `.github/workflows/build.yml`
 
