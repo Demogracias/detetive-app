@@ -27,6 +27,7 @@
     <script src="vocab-data.js"></script>
     <script src="lovecraft-texts.js"></script>
     <script src="enem/enem-data.js"></script>
+    <script src="enem/enem-knowledge.js"></script>
     <script src="supabase-config.js"></script>
     <script>function cdnFallback(el){var k=el.getAttribute('data-fallback');if(!k||!window.ASSETS_DATA||!window.ASSETS_DATA[k]){if(window.deckShowToast)deckShowToast('Falha ao carregar '+k+'. Verifique sua conexão.','error');return;}var v=window.ASSETS_DATA[k];if(el.tagName==='LINK'){var s=document.createElement('style');s.textContent=v;document.head.appendChild(s)}else if(el.tagName==='SCRIPT'){var s=document.createElement('script');s.textContent=v;document.head.appendChild(s)}}</script>
     <script src="cdn-assets.js"></script>
@@ -979,12 +980,6 @@ setTimeout(function(){
                                 <span class="text-neutral-400 italic">Nenhum livro.</span>
                             </div>
                             <div class="mt-3 border-t border-black pt-3">
-                                <h4 class="text-[10px] font-bold uppercase text-black mb-1">?? BAIXAR NOVEL DA WEB:</h4>
-                                <div class="flex gap-1">
-                                    <input type="text" id="novel-url-input" class="flex-1 noir-input p-2 text-[10px] font-bold uppercase" placeholder="URL (novelbin, royalroad)..." onkeydown="if(event.key==='Enter') novelFetchFromUrl()">
-                                    <button onclick="novelFetchFromUrl()" class="bg-black text-white px-2 py-1.5 text-[9px] font-bold uppercase border-2 border-black hover:bg-neutral-800">BAIXAR</button>
-                                </div>
-                                <div id="novel-status" class="text-[8px] font-mono text-neutral-500 mt-1 hidden"></div>
                             </div>
                                      </div>
                                      <!-- BLOQUEIO (VPN/DNS) -->
@@ -5254,9 +5249,31 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
 
     function searchWikipedia(query, maxResults) {
         return new Promise(function(resolve) {
+            // Check ENEM knowledge base first (offline)
+            if (window.ENEM_KNOWLEDGE && window.ENEM_KNOWLEDGE.length > 0) {
+                var q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                var terms = q.split(/\s+/).filter(function(t) { return t.length > 2; });
+                var scored = [];
+                for (var i = 0; i < window.ENEM_KNOWLEDGE.length; i++) {
+                    var entry = window.ENEM_KNOWLEDGE[i];
+                    var title = entry.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var snippet = (entry.snippet || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var score = 0;
+                    for (var t = 0; t < terms.length; t++) {
+                        if (title.indexOf(terms[t]) >= 0) score += 10;
+                        if (snippet.indexOf(terms[t]) >= 0) score += 1;
+                    }
+                    if (score > 0) scored.push({ title: entry.title, snippet: entry.snippet, score: score });
+                }
+                scored.sort(function(a, b) { return b.score - a.score; });
+                if (scored.length > 0) {
+                    resolve({ source: 'local', results: scored.slice(0, maxResults || 3) });
+                    return;
+                }
+            }
+            // Fallback: try ZIM server, then online
             var controller = new AbortController();
             var timeout = setTimeout(function() { controller.abort(); }, 2000);
-            // Try local ZIM server first
             var url = 'http://127.0.0.1:8085/api/search?q=' + encodeURIComponent(query) + '&max=' + (maxResults || 3);
             fetch(url, { signal: controller.signal })
                 .then(function(r) { return r.json(); })
@@ -9228,216 +9245,7 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 ?? AO BIBLIOTEC�RIO PARA SEREM D
         var titleEl = document.getElementById('whiskeyry-reader-title');
         if (titleEl) titleEl.textContent = 'Leitor';
     }
-    // ==========================================
-    // WEB NOVEL DOWNLOADER
-    // ==========================================
-    function novelSetStatus(msg, type) {
-        var el = document.getElementById('novel-status');
-        if (!el) return;
-        el.classList.remove('hidden', 'text-green-700', 'text-red-700', 'text-neutral-500');
-        el.textContent = msg;
-        if (type === 'success') el.classList.add('text-green-700');
-        else if (type === 'error') el.classList.add('text-red-700');
-        else el.classList.add('text-neutral-500');
-    }
-    function novelFetchFromUrl() {
-        var inp = document.getElementById('novel-url-input');
-        if (!inp) return;
-        var url = inp.value.trim();
-        if (!url) { novelSetStatus('Digite uma URL.', 'error'); return; }
-        if (getAvailableWhiskey() < 2) { novelSetStatus('Precisa de 2' + getCurrencyEmoji() + ' para baixar uma novel.', 'error'); return; }
-        novelSetStatus('Conectando ao servidor...', '');
-        inp.disabled = true;
-        var proxy = 'https://api.allorigins.win/raw?url=';
-        var fetchUrl = proxy + encodeURIComponent(url);
-        fetch(fetchUrl).then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.text();
-        }).then(function(html) {
-            novelSetStatus('Processando cap�tulos...', '');
-            novelParseAndSave(url, html);
-        }).catch(function(err) {
-            novelSetStatus('Erro ao buscar: ' + err.message, 'error');
-            inp.disabled = false;
-        });
-    }
-    var _novelChapterCount = 0;
-    function novelParseAndSave(url, html) {
-        var title = '';
-        var chapters = [];
-        var m = html.match(/<title>([^<]*)<\/title>/i);
-        if (m) title = m[1].replace(/[-��|].*$/, '').trim();
-        if (!title) title = 'Novel ' + new Date().toISOString().slice(0, 10);
-        // Try novelbin-like format: chapter list in <div class="chapter-list"> or similar
-        var chapterLinks = [];
-        var linkRegex = /<a[^>]*href="([^"]*\/chapter[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-        var lm;
-        while ((lm = linkRegex.exec(html)) !== null) {
-            var href = lm[1];
-            var text = lm[2].replace(/<[^>]+>/g, '').trim();
-            if (text && /chapter/i.test(text)) {
-                chapterLinks.push({ href: href, text: text });
-            }
-        }
-        // If no chapter links found, try <li> containing "chapter"
-        if (chapterLinks.length === 0) {
-            var liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
-            while ((lm = liRegex.exec(html)) !== null) {
-                var liContent = lm[1];
-                if (/chapter/i.test(liContent)) {
-                    var aMatch = liContent.match(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
-                    if (aMatch) {
-                        chapterLinks.push({ href: aMatch[1], text: aMatch[2].replace(/<[^>]+>/g, '').trim() });
-                    }
-                }
-            }
-        }
-        if (chapterLinks.length === 0) {
-            novelSetStatus('Nenhum cap�tulo encontrado. O site pode n�o ser suportado.', 'error');
-            document.getElementById('novel-url-input').disabled = false;
-            return;
-        }
-        _novelChapterCount = chapterLinks.length;
-        novelSetStatus('Baixando ' + _novelChapterCount + ' cap�tulos (pode levar alguns minutos)...', '');
-        var chapterContents = [];
-        var MAX_RETRIES = 2;
-        var fetchQueue = chapterLinks.map(function(ch, idx) {
-            return function retryFetch(attempt) {
-                if (attempt === undefined) attempt = 0;
-                var chUrl = ch.href.startsWith('http') ? ch.href : new URL(ch.href, url).href;
-                var proxy = 'https://api.allorigins.win/raw?url=';
-                return fetch(proxy + encodeURIComponent(chUrl)).then(function(r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.text();
-                }).catch(function(err) {
-                    if (attempt < MAX_RETRIES) {
-                        novelSetStatus('Retry ' + (attempt + 1) + '/' + MAX_RETRIES + ' chapter ' + (idx + 1), '');
-                        return retryFetch(attempt + 1);
-                    }
-                    throw err;
-                }).then(function(chHtml) {
-                    // Extract main content - try common selectors
-                    var content = '';
-                    var contentMatch = chHtml.match(/<div[^>]*class="[^"]*chapter-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-                        || chHtml.match(/<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-                        || chHtml.match(/<div[^>]*id="chapter-content"[^>]*>([\s\S]*?)<\/div>/i)
-                        || chHtml.match(/<div[^>]*class="[^"]*text[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-                        || chHtml.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-                        || chHtml.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-                    if (contentMatch) {
-                        content = contentMatch[1]
-                            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                            .replace(/<br[^>]*>/gi, '\n')
-                            .replace(/<p[^>]*>/gi, '\n')
-                            .replace(/<\/p>/gi, '')
-                            .replace(/<[^>]+>/g, '')
-                            .replace(/&amp;/g, '&')
-                            .replace(/&lt;/g, '<')
-                            .replace(/&gt;/g, '>')
-                            .replace(/&quot;/g, '"')
-                            .replace(/&#39;/g, "'")
-                            .replace(/&nbsp;/g, ' ')
-                            .replace(/\n{3,}/g, '\n\n')
-                            .trim();
-                    }
-                    if (!content) content = '(conte�do n�o encontrado)';
-                    chapterContents.push({ idx: idx, text: content, title: ch.text || 'Cap�tulo ' + (idx + 1) });
-                    novelSetStatus('Baixando... ' + (idx + 1) + '/' + chapterLinks.length, '');
-                });
-            };
-        });
-        // Sequential fetch to avoid rate limiting
-        var promise = Promise.resolve();
-        fetchQueue.forEach(function(fn) { promise = promise.then(fn); });
-        promise.then(function() {
-            chapterContents.sort(function(a, b) { return a.idx - b.idx; });
-            novelGenerateEPUB(title, url, chapterContents);
-        }).catch(function(err) {
-            novelSetStatus('Erro ao baixar cap�tulos: ' + err.message, 'error');
-            document.getElementById('novel-url-input').disabled = false;
-        });
-    }
-    function novelGenerateEPUB(title, sourceUrl, chapters) {
-        var safeTitle = title.replace(/[^a-z0-9\s]/gi, '').trim().substring(0, 80) || 'novel';
-        var now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        var uuid = 'urn:uuid:' + now + '-' + Math.random().toString(36).slice(2, 10);
-        // Build minimal EPUB (without external dependencies)
-        var chapterXhtml = '';
-        chapters.forEach(function(ch, idx) {
-            var cleanText = ch.text
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\n/g, '<br/>');
-            chapterXhtml += '<section id="chapter-' + (idx + 1) + '">'
-                + '<h2>' + ch.title.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</h2>'
-                + '<p>' + cleanText.replace(/(<br\/>\s*){2,}/g, '</p><p>') + '</p>'
-                + '</section>';
-        });
-        var epubContent = '<?xml version="1.0" encoding="UTF-8"?>\n'
-            + '<package version="3.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="book-id">\n'
-            + '<metadata>\n'
-            + '  <dc:identifier id="book-id">' + uuid + '</dc:identifier>\n'
-            + '  <dc:title>' + title.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</dc:title>\n'
-            + '  <dc:language>pt</dc:language>\n'
-            + '  <meta property="dcterms:modified">' + now + '</meta>\n'
-            + '</metadata>\n'
-            + '<manifest>\n'
-            + '  <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>\n'
-            + '</manifest>\n'
-            + '<spine><itemref idref="content"/></spine>\n'
-            + '</package>';
-        var contentXhtml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-            + '<html xmlns="http://www.w3.org/1999/xhtml">\n<head><title>' + title.replace(/&/g, '&amp;') + '</title>'
-            + '<style>body{font-family:serif;margin:2em}section{margin-bottom:2em}h2{font-size:1.2em}</style>'
-            + '</head>\n<body>\n' + chapterXhtml + '\n</body>\n</html>';
-        var containerXml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-            + '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n'
-            + '  <rootfiles>\n'
-            + '    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>\n'
-            + '  </rootfiles>\n</container>';
-        // Use JSZip if available to create EPUB
-        if (typeof JSZip !== 'undefined') {
-            var zip = new JSZip();
-            zip.file('mimetype', 'application/epub+zip');
-            zip.file('META-INF/container.xml', containerXml);
-            zip.file('content.opf', epubContent);
-            zip.file('content.xhtml', contentXhtml);
-            zip.generateAsync({ type: 'arraybuffer' }).then(function(buf) {
-                novelSaveToLibrary(safeTitle, buf);
-            });
-        } else {
-            // Fallback: save as XHTML
-            var blob = new Blob([contentXhtml], { type: 'application/xhtml+xml' });
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = safeTitle + '.xhtml';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            novelSetStatus('JSZip n�o dispon�vel. Arquivo XHTML baixado.', 'success');
-            document.getElementById('novel-url-input').disabled = false;
-        }
-    }
-    function novelSaveToLibrary(title, data) {
-        whiskeyryInitDB(function(err, db) {
-            if (err) { novelSetStatus('Erro ao salvar no banco.', 'error'); document.getElementById('novel-url-input').disabled = false; return; }
-            var tx = db.transaction(LIBRARY_STORE, 'readwrite');
-            var store = tx.objectStore(LIBRARY_STORE);
-            var entry = { name: title + '.epub', type: 'epub', data: data, added: Date.now() };
-            var req = store.add(entry);
-            req.onsuccess = function() {
-                spentWhiskey += 2;
-                localStorage.setItem('noir_spent_whiskey', spentWhiskey);
-                updateWhiskeyUI();
-                novelSetStatus('"' + title + '" baixado e salvo na biblioteca! (-2' + getCurrencyEmoji() + ') ' + _novelChapterCount + ' cap�tulos.', 'success');
-                whiskeyryRenderList();
-                document.getElementById('novel-url-input').disabled = false;
-            };
-            req.onerror = function() { novelSetStatus('Erro ao salvar livro.', 'error'); document.getElementById('novel-url-input').disabled = false; };
-        });
-    }
+
     // Init whiskeyry immediately (script runs at end of body, DOM is ready)
     whiskeyryInitDB(function() { whiskeyryRenderList(); });
     // ==========================================

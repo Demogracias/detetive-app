@@ -27,6 +27,7 @@
     <script src="vocab-data.js"></script>
     <script src="lovecraft-texts.js"></script>
     <script src="enem/enem-data.js"></script>
+    <script src="enem/enem-knowledge.js"></script>
     <script>function cdnFallback(el){var k=el.getAttribute('data-fallback');if(!k||!window.ASSETS_DATA||!window.ASSETS_DATA[k])return;var v=window.ASSETS_DATA[k];if(el.tagName==='LINK'){var s=document.createElement('style');s.textContent=v;document.head.appendChild(s)}else if(el.tagName==='SCRIPT'){var s=document.createElement('script');s.textContent=v;document.head.appendChild(s)}}</script>
     <script src="cdn-assets.js"></script>
     
@@ -5081,9 +5082,31 @@ OS ARQUIVOS SELADOS EXIGEM UM PAGAMENTO DE 10 🥃 AO BIBLIOTECÁRIO PARA SEREM 
 
     function searchWikipedia(query, maxResults) {
         return new Promise(function(resolve) {
+            // Check ENEM knowledge base first (offline)
+            if (window.ENEM_KNOWLEDGE && window.ENEM_KNOWLEDGE.length > 0) {
+                var q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                var terms = q.split(/\s+/).filter(function(t) { return t.length > 2; });
+                var scored = [];
+                for (var i = 0; i < window.ENEM_KNOWLEDGE.length; i++) {
+                    var entry = window.ENEM_KNOWLEDGE[i];
+                    var title = entry.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var snippet = (entry.snippet || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    var score = 0;
+                    for (var t = 0; t < terms.length; t++) {
+                        if (title.indexOf(terms[t]) >= 0) score += 10;
+                        if (snippet.indexOf(terms[t]) >= 0) score += 1;
+                    }
+                    if (score > 0) scored.push({ title: entry.title, snippet: entry.snippet, score: score });
+                }
+                scored.sort(function(a, b) { return b.score - a.score; });
+                if (scored.length > 0) {
+                    resolve({ source: 'local', results: scored.slice(0, maxResults || 3) });
+                    return;
+                }
+            }
+            // Fallback: try ZIM server, then online
             var controller = new AbortController();
             var timeout = setTimeout(function() { controller.abort(); }, 2000);
-            // Try local ZIM server first
             var url = 'http://127.0.0.1:8085/api/search?q=' + encodeURIComponent(query) + '&max=' + (maxResults || 3);
             fetch(url, { signal: controller.signal })
                 .then(function(r) { return r.json(); })
